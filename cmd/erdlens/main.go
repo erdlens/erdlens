@@ -23,6 +23,7 @@ func main() {
 
 	root.AddCommand(newGenerateCmd())
 	root.AddCommand(newViewCmd())
+	root.AddCommand(newVersionCmd())
 	// TODO(phase 3): connect command
 	// TODO(v2): diff command
 
