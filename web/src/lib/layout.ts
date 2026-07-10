@@ -46,3 +46,26 @@ export function autoLayout(
   }
   return result
 }
+
+/** Layout for isolate mode: selected table at origin, neighbors spaced by dagre. */
+export function isolatedLayout(
+  tables: Table[],
+  selected: string,
+): Map<string, Layout> {
+  if (tables.length === 0) return new Map()
+
+  const maxH = Math.max(...tables.map(nodeHeight))
+  // Dagre accounts for node bounding boxes; add extra gap for tall tables.
+  const gap = Math.max(60, maxH > 400 ? 80 : 40)
+
+  const positions = autoLayout(tables, { nodesep: gap, ranksep: gap + 40 })
+
+  const selPos = positions.get(selected)
+  if (!selPos) return positions
+
+  const centered = new Map<string, Layout>()
+  for (const [name, pos] of positions) {
+    centered.set(name, { x: pos.x - selPos.x, y: pos.y - selPos.y })
+  }
+  return centered
+}

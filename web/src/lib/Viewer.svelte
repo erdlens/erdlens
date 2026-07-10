@@ -13,7 +13,7 @@
   import { toPng, toSvg } from 'html-to-image'
 
   import type { Schema, View, Table } from './types'
-  import { autoLayout, nodeHeight, NODE_WIDTH } from './layout'
+  import { autoLayout, isolatedLayout, nodeHeight, NODE_WIDTH } from './layout'
   import { matchesView } from './glob'
   import TableNode from './TableNode.svelte'
 
@@ -336,32 +336,9 @@
     const focusTables = schema.tables.filter(
       (t) => t.name === sel || neighbors.has(t.name),
     )
-    const selTable = focusTables.find((t) => t.name === sel)
-    if (!selTable) return
+    if (!focusTables.some((t) => t.name === sel)) return
 
-    // Radial layout: put the selected table dead-center and arrange its
-    // neighbors in a ring around it, radius scaled to how many neighbors
-    // there are. This keeps everything within one screen, so the user never
-    // has to scroll to see all direct relations.
-    const others = focusTables.filter((t) => t.name !== sel)
-    const positions = new Map<string, { x: number; y: number }>()
-    positions.set(sel, { x: 0, y: 0 })
-
-    const n = others.length
-    if (n > 0) {
-      // Space the ring so neighbor boxes don't overlap each other.
-      const circumference = n * (NODE_WIDTH + 60)
-      const minR = NODE_WIDTH + 80
-      const radius = Math.max(minR, circumference / (2 * Math.PI))
-      const startAngle = -Math.PI / 2 // first neighbor on top
-      others.forEach((t, i) => {
-        const theta = startAngle + (i * 2 * Math.PI) / n
-        positions.set(t.name, {
-          x: Math.cos(theta) * radius - NODE_WIDTH / 2,
-          y: Math.sin(theta) * radius - nodeHeight(t) / 2,
-        })
-      })
-    }
+    const positions = isolatedLayout(focusTables, sel)
 
     nodes.update((ns) =>
       ns.map((n) => {
