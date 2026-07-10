@@ -607,6 +607,7 @@
       {nodes}
       {edges}
       {nodeTypes}
+      proOptions={{ hideAttribution: true }}
       fitView
       minZoom={0.05}
       maxZoom={2}

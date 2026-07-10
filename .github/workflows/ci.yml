@@ -39,9 +39,14 @@ jobs:
 
       - name: Offline audit (no external URLs in dist/)
         run: |
-          if grep -rnE 'https?://(?!localhost|127\.0\.0\.1|www\.w3\.org)' web/dist/ > /tmp/urls.txt; then
+          # GNU grep does not support PCRE negative lookahead; extract URLs then filter allowlist.
+          violations=$(grep -rohE 'https?://[^"'\''[:space:]<>\\]+' web/dist/ \
+            | sort -u \
+            | grep -vE '^https?://(localhost|127\.0\.0\.1|www\.w3\.org)([:/]|$)' \
+            || true)
+          if [ -n "$violations" ]; then
             echo "❌ External URLs found in web/dist/:"
-            cat /tmp/urls.txt
+            echo "$violations"
             exit 1
           else
             echo "✅ no external URLs in web/dist/"

@@ -1,6 +1,9 @@
 package introspect
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestOptionsMatch(t *testing.T) {
 	cases := []struct {
@@ -26,7 +29,7 @@ func TestOptionsMatch(t *testing.T) {
 }
 
 func TestOpenUnsupportedDialect(t *testing.T) {
-	_, err := Open(nil, "mysql://foo/bar")
+	_, err := Open(context.TODO(), "mysql://foo/bar")
 	if err == nil {
 		t.Fatal("expected error for unsupported dialect")
 	}
