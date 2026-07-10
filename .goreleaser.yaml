@@ -1,0 +1,87 @@
+# goreleaser config for erdlens
+# Docs: https://goreleaser.com
+version: 2
+
+project_name: erdlens
+
+before:
+  hooks:
+    - go mod tidy
+    # The frontend is embedded via go:embed. Build it before the Go compiler
+    # runs so web/dist/ is populated. `npm ci` runs in the release workflow
+    # so this step can assume node_modules exist.
+    - sh -c "cd web && npm run build"
+
+builds:
+  - id: erdlens
+    main: ./cmd/erdlens
+    binary: erdlens
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - name_template: "erdlens_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - docs/**/*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  draft: false
+  prerelease: auto
+  header: |
+    ## erdlens {{ .Tag }}
+
+    Interactive, git-friendly ER diagrams for relational databases.
+
+    ### Install
+
+    ```sh
+    brew install erdlens/tap/erdlens
+    ```
+
+    Or download the binary for your platform below.
+
+brews:
+  - name: erdlens
+    repository:
+      owner: erdlens
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      branch: main
+    directory: Formula
+    homepage: "https://github.com/erdlens/erdlens"
+    description: "Interactive, git-friendly ER diagrams for relational databases."
+    license: "MIT"
+    commit_author:
+      name: erdlens-bot
+      email: bot@erdlens.dev
+    commit_msg_template: "erdlens: bump to {{ .Tag }}"
+    test: |
+      system "#{bin}/erdlens", "version"
+    install: |
+      bin.install "erdlens"

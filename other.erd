@@ -1,0 +1,3943 @@
+meta {
+  dialect = "postgres"
+}
+
+table "activity_feed_reads" {
+
+  column "user_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "audit_log_id" {
+    type = "bigint"
+    null = false
+  }
+
+  column "read_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["user_id", "audit_log_id"]
+  }
+
+  foreign_key "activity_feed_reads_audit_log_id_foreign" {
+    columns     = ["audit_log_id"]
+    ref_table   = "audit_log"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "activity_feed_reads_user_id_foreign" {
+    columns     = ["user_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_afr_user" {
+    columns = ["user_id", "read_at"]
+  }
+
+  layout {
+    x = 1840
+    y = 236
+  }
+}
+
+table "assessment_resource_refs" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "assessment_section_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "assessment_stage_level_id" {
+    type = "uuid"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "uri" {
+    type = "text"
+  }
+
+  column "ref_type" {
+    type = "text"
+    null = false
+    default = "'item'::text"
+  }
+
+  column "position" {
+    type = "integer"
+    null = false
+    default = "0"
+  }
+
+  column "weight" {
+    type = "numeric(8,2)"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "assessment_resource_refs_assessment_section_id_foreign" {
+    columns     = ["assessment_section_id"]
+    ref_table   = "assessment_sections"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "assessment_resource_refs_assessment_stage_level_id_foreign" {
+    columns     = ["assessment_stage_level_id"]
+    ref_table   = "assessment_section_stage_levels"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "assessment_resource_refs_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_arr_level" {
+    columns = ["assessment_stage_level_id"]
+  }
+
+  index "idx_arr_name" {
+    columns = ["name"]
+  }
+
+  index "idx_arr_resource" {
+    columns = ["resource_id"]
+  }
+
+  index "idx_arr_section" {
+    columns = ["assessment_section_id"]
+  }
+
+  layout {
+    x = 40
+    y = 322.5
+  }
+}
+
+table "assessment_section_stage_levels" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "assessment_stage_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "title" {
+    type = "text"
+  }
+
+  column "min_ability" {
+    type = "numeric(8,2)"
+    null = false
+  }
+
+  column "max_ability" {
+    type = "numeric(8,2)"
+    null = false
+  }
+
+  column "position" {
+    type = "integer"
+    null = false
+    default = "0"
+  }
+
+  column "source_metadata" {
+    type = "jsonb"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "assessment_section_stage_levels_assessment_stage_id_foreign" {
+    columns     = ["assessment_stage_id"]
+    ref_table   = "assessment_section_stages"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_asl_stage" {
+    columns = ["assessment_stage_id"]
+  }
+
+  layout {
+    x = 400
+    y = 322.5
+  }
+}
+
+table "assessment_section_stages" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "assessment_section_id" {
+    type = "uuid"
+    null = false
+    unique = true
+  }
+
+  column "ability_tag" {
+    type = "text"
+    null = false
+  }
+
+  column "routing_rule" {
+    type = "text"
+    null = false
+    default = "'theta'::text"
+  }
+
+  column "source_type" {
+    type = "text"
+    null = false
+    default = "'stage-level'::text"
+  }
+
+  column "item_selection_rule" {
+    type = "text"
+    null = false
+    default = "'multistage'::text"
+  }
+
+  column "require_calibrated" {
+    type = "boolean"
+    default = "false"
+  }
+
+  column "weight" {
+    type = "numeric(8,2)"
+  }
+
+  column "item_exposure_candidates_count" {
+    type = "integer"
+  }
+
+  column "source_metadata" {
+    type = "jsonb"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "assessment_section_stages_assessment_section_id_foreign" {
+    columns     = ["assessment_section_id"]
+    ref_table   = "assessment_sections"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  layout {
+    x = 760
+    y = 300.5
+  }
+}
+
+table "assessment_sections" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "assessment_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "parent_section_id" {
+    type = "uuid"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "title" {
+    type = "text"
+  }
+
+  column "position" {
+    type = "integer"
+    null = false
+    default = "0"
+  }
+
+  column "is_active" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "time_limit" {
+    type = "integer"
+  }
+
+  column "shuffle_items" {
+    type = "boolean"
+    default = "false"
+  }
+
+  column "selection" {
+    type = "jsonb"
+  }
+
+  column "source_metadata" {
+    type = "jsonb"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "assessment_sections_assessment_id_foreign" {
+    columns     = ["assessment_id"]
+    ref_table   = "assessments"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "assessment_sections_parent_section_id_foreign" {
+    columns     = ["parent_section_id"]
+    ref_table   = "assessment_sections"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "assessment_sections_assessment_id_name_unique" {
+    columns = ["assessment_id", "name"]
+    unique  = true
+  }
+
+  index "idx_as_assessment" {
+    columns = ["assessment_id"]
+  }
+
+  index "idx_as_parent" {
+    columns = ["parent_section_id"]
+  }
+
+  layout {
+    x = 1120
+    y = 40
+  }
+}
+
+table "assessment_tags" {
+
+  column "assessment_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "tag_id" {
+    type = "uuid"
+    null = false
+  }
+
+  primary_key {
+    columns = ["assessment_id", "tag_id"]
+  }
+
+  foreign_key "assessment_tags_assessment_id_foreign" {
+    columns     = ["assessment_id"]
+    ref_table   = "assessments"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "assessment_tags_tag_id_foreign" {
+    columns     = ["tag_id"]
+    ref_table   = "tags"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  layout {
+    x = 1120
+    y = 658
+  }
+}
+
+table "assessment_taxonomies" {
+
+  column "assessment_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "taxonomy_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "source_uri" {
+    type = "text"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["assessment_id", "taxonomy_id"]
+  }
+
+  foreign_key "assessment_taxonomies_assessment_id_foreign" {
+    columns     = ["assessment_id"]
+    ref_table   = "assessments"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "assessment_taxonomies_taxonomy_id_foreign" {
+    columns     = ["taxonomy_id"]
+    ref_table   = "taxonomies"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_at_assessment" {
+    columns = ["assessment_id"]
+  }
+
+  layout {
+    x = 1120
+    y = 1617.5
+  }
+}
+
+table "assessments" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "type" {
+    type = "text"
+    null = false
+  }
+
+  column "time_limit" {
+    type = "integer"
+  }
+
+  column "navigation_mode" {
+    type = "text"
+  }
+
+  column "submission_mode" {
+    type = "text"
+  }
+
+  column "shuffle_choices" {
+    type = "boolean"
+    default = "false"
+  }
+
+  column "grading" {
+    type = "jsonb"
+  }
+
+  column "configuration" {
+    type = "jsonb"
+  }
+
+  column "source_system" {
+    type = "text"
+    null = false
+  }
+
+  column "source_metadata" {
+    type = "jsonb"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "assessments_resource_fk" {
+    columns     = ["id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_a_source_system" {
+    columns = ["source_system"]
+  }
+
+  index "idx_a_type" {
+    columns = ["type"]
+  }
+
+  layout {
+    x = 1480
+    y = 213.5
+  }
+}
+
+table "audit_log" {
+
+  column "id" {
+    type = "bigint"
+    null = false
+    default = "nextval('audit_log_id_seq'::regclass)"
+  }
+
+  column "actor_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "actor_role" {
+    type = "text"
+  }
+
+  column "action" {
+    type = "text"
+    null = false
+  }
+
+  column "entity_type" {
+    type = "text"
+    null = false
+  }
+
+  column "entity_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "diff" {
+    type = "jsonb"
+  }
+
+  column "context" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "audit_log_actor_id_foreign" {
+    columns     = ["actor_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_audit_action" {
+    columns = ["action", "created_at"]
+  }
+
+  index "idx_audit_actor" {
+    columns = ["actor_id", "created_at"]
+  }
+
+  index "idx_audit_entity" {
+    columns = ["entity_type", "entity_id"]
+  }
+
+  index "idx_audit_time" {
+    columns = ["created_at"]
+  }
+
+  layout {
+    x = 2200
+    y = 95
+  }
+}
+
+table "chat_usage_log" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "user_id" {
+    type = "text"
+    null = false
+  }
+
+  column "message" {
+    type = "text"
+    null = false
+  }
+
+  column "classified_intent" {
+    type = "text"
+    null = false
+  }
+
+  column "confidence" {
+    type = "real"
+    null = false
+  }
+
+  column "extracted_params" {
+    type = "jsonb"
+    null = false
+    default = "'{}'::jsonb"
+  }
+
+  column "target_route" {
+    type = "text"
+  }
+
+  column "navigated" {
+    type = "boolean"
+    null = false
+    default = "false"
+  }
+
+  column "model" {
+    type = "text"
+  }
+
+  column "input_tokens" {
+    type = "integer"
+    null = false
+    default = "0"
+  }
+
+  column "output_tokens" {
+    type = "integer"
+    null = false
+    default = "0"
+  }
+
+  column "cost_usd" {
+    type = "numeric(12,6)"
+    null = false
+    default = "'0'::numeric"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  index "idx_chat_usage_log_created" {
+    columns = ["created_at"]
+  }
+
+  index "idx_chat_usage_log_intent" {
+    columns = ["classified_intent"]
+  }
+
+  index "idx_chat_usage_log_user" {
+    columns = ["user_id"]
+  }
+
+  layout {
+    x = 40
+    y = 646.5
+  }
+}
+
+table "courses" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "map_id" {
+    type = "uuid"
+  }
+
+  column "version_label" {
+    type = "text"
+  }
+
+  column "manifest_metadata" {
+    type = "jsonb"
+  }
+
+  column "validation_profile" {
+    type = "jsonb"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "type" {
+    type = "text"
+  }
+
+  column "delivery_config" {
+    type = "jsonb"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "courses_resource_fk" {
+    columns     = ["id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "courses_syllabus_id_foreign" {
+    columns     = ["map_id"]
+    ref_table   = "maps"
+    ref_columns = ["id"]
+  }
+
+  index "idx_course_map" {
+    columns = ["map_id"]
+  }
+
+  layout {
+    x = 1480
+    y = 6023.5
+  }
+}
+
+table "delivery_target_formats" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "delivery_target_id" {
+    type = "uuid"
+  }
+
+  column "format_code" {
+    type = "text"
+    null = false
+  }
+
+  column "direction" {
+    type = "text"
+    null = false
+  }
+
+  column "label" {
+    type = "text"
+  }
+
+  column "mime_type" {
+    type = "text"
+  }
+
+  column "config" {
+    type = "jsonb"
+  }
+
+  column "is_enabled" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "delivery_target_formats_delivery_target_id_foreign" {
+    columns     = ["delivery_target_id"]
+    ref_table   = "delivery_targets"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_dtf_direction" {
+    columns = ["direction"]
+  }
+
+  index "idx_dtf_target" {
+    columns = ["delivery_target_id"]
+  }
+
+  index "uq_dtf_target_format_dir" {
+    columns = ["format_code", "direction"]
+    unique  = true
+  }
+
+  layout {
+    x = 1840
+    y = 536
+  }
+}
+
+table "delivery_targets" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "code" {
+    type = "text"
+    unique = true
+  }
+
+  column "api_base_url" {
+    type = "text"
+  }
+
+  column "target_metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  layout {
+    x = 2200
+    y = 807
+  }
+}
+
+table "deployments" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "delivery_target_id" {
+    type = "uuid"
+  }
+
+  column "environment" {
+    type = "text"
+    null = false
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "deployments_delivery_target_id_foreign" {
+    columns     = ["delivery_target_id"]
+    ref_table   = "delivery_targets"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "deployments_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "deployments_resource_id_delivery_target_id_environment_unique" {
+    columns = ["resource_id", "delivery_target_id", "environment"]
+    unique  = true
+  }
+
+  index "idx_deploy_target" {
+    columns = ["delivery_target_id"]
+  }
+
+  layout {
+    x = 1480
+    y = 828
+  }
+}
+
+table "dita_conrefs" {
+
+  column "parent_resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "child_resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "placeholder_key" {
+    type = "text"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["parent_resource_id", "child_resource_id"]
+  }
+
+  foreign_key "dita_conrefs_child_resource_id_foreign" {
+    columns     = ["child_resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "dita_conrefs_parent_resource_id_foreign" {
+    columns     = ["parent_resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_conref_child" {
+    columns = ["child_resource_id"]
+  }
+
+  layout {
+    x = 1480
+    y = 1042
+  }
+}
+
+table "dita_toolkit_files" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "scope" {
+    type = "text"
+    null = false
+    default = "'GLOBAL'::text"
+  }
+
+  column "file_type" {
+    type = "text"
+    null = false
+  }
+
+  column "filename" {
+    type = "text"
+    null = false
+  }
+
+  column "s3_key" {
+    type = "text"
+  }
+
+  column "content_hash" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "name" {
+    type = "text"
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "content" {
+    type = "text"
+  }
+
+  column "is_current" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "version_number" {
+    type = "integer"
+    default = "1"
+  }
+
+  column "root_file_id" {
+    type = "uuid"
+  }
+
+  column "is_active" {
+    type = "boolean"
+    default = "true"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "dita_toolkit_files_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "dita_toolkit_files_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "dita_toolkit_files_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "dita_toolkit_files_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_dtf_hash" {
+    columns = ["content_hash"]
+  }
+
+  index "idx_dtf_scope" {
+    columns = ["scope", "portfolio_id", "resource_id"]
+  }
+
+  index "idx_dtf_type" {
+    columns = ["file_type", "is_current"]
+  }
+
+  layout {
+    x = 1480
+    y = 1212
+  }
+}
+
+table "export_jobs" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "publication_id" {
+    type = "uuid"
+  }
+
+  column "status" {
+    type = "text"
+    null = false
+    default = "'QUEUED'::text"
+  }
+
+  column "progress_percent" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "download_url" {
+    type = "text"
+  }
+
+  column "error_log" {
+    type = "jsonb"
+  }
+
+  column "started_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "completed_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "actor_id" {
+    type = "uuid"
+  }
+
+  column "format" {
+    type = "text"
+  }
+
+  column "project_id" {
+    type = "text"
+  }
+
+  column "progress_total" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "progress_completed" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "progress_failed" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "artifact_bytes" {
+    type = "bytea"
+  }
+
+  column "artifact_mime" {
+    type = "text"
+  }
+
+  column "artifact_filename" {
+    type = "text"
+  }
+
+  column "artifact_size" {
+    type = "integer"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "export_jobs_actor_id_foreign" {
+    columns     = ["actor_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "export_jobs_publication_id_foreign" {
+    columns     = ["publication_id"]
+    ref_table   = "publications"
+    ref_columns = ["id"]
+  }
+
+  index "idx_ej_actor" {
+    columns = ["actor_id", "created_at"]
+  }
+
+  index "idx_ej_created_at" {
+    columns = ["created_at"]
+  }
+
+  index "idx_ej_publication" {
+    columns = ["publication_id"]
+  }
+
+  index "idx_ej_status" {
+    columns = ["status"]
+  }
+
+  layout {
+    x = 1053.6415802343245
+    y = 2461.2779431577246
+  }
+}
+
+table "import_jobs" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "actor_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "source_type" {
+    type = "text"
+    null = false
+  }
+
+  column "source_url" {
+    type = "text"
+  }
+
+  column "status" {
+    type = "text"
+    null = false
+    default = "'PENDING'::text"
+  }
+
+  column "total_items" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "processed_items" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "skipped_items" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "error_items" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "conflict_strategy" {
+    type = "text"
+    default = "'SKIP'::text"
+  }
+
+  column "preview_report" {
+    type = "jsonb"
+  }
+
+  column "error_log" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "completed_at" {
+    type = "timestamp with time zone"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "import_jobs_actor_id_foreign" {
+    columns     = ["actor_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_import_actor" {
+    columns = ["actor_id", "created_at"]
+  }
+
+  index "idx_import_status" {
+    columns = ["status"]
+  }
+
+  layout {
+    x = 2200
+    y = 395
+  }
+}
+
+table "learning_objectives" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+  }
+
+  column "parent_id" {
+    type = "uuid"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "title" {
+    type = "text"
+    null = false
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "outcome_statement" {
+    type = "text"
+  }
+
+  column "bloom_level" {
+    type = "text"
+  }
+
+  column "domain" {
+    type = "text"
+  }
+
+  column "measurement_criteria" {
+    type = "jsonb"
+  }
+
+  column "case_guid" {
+    type = "uuid"
+  }
+
+  column "source_system" {
+    type = "text"
+  }
+
+  column "source_uri" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "objectives" {
+    type = "jsonb"
+  }
+
+  column "raw_xml" {
+    type = "xml"
+  }
+
+  column "xml_declaration" {
+    type = "text"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "learning_objectives_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "learning_objectives_parent_id_foreign" {
+    columns     = ["parent_id"]
+    ref_table   = "learning_objectives"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "learning_objectives_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+    on_delete   = "set_null"
+  }
+
+  foreign_key "learning_objectives_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_lo_bloom" {
+    columns = ["bloom_level"]
+  }
+
+  index "idx_lo_identifier" {
+    columns = ["name"]
+  }
+
+  index "idx_lo_parent" {
+    columns = ["parent_id"]
+  }
+
+  index "idx_lo_portfolio" {
+    columns = ["portfolio_id"]
+  }
+
+  index "idx_lo_portfolio_identifier" {
+    columns = ["name"]
+    unique  = true
+  }
+
+  layout {
+    x = 1840
+    y = 2093
+  }
+}
+
+table "map_node_entitlements" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "node_id" {
+    type = "uuid"
+  }
+
+  column "sku_id" {
+    type = "uuid"
+  }
+
+  column "is_required" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "syllabus_node_entitlements_node_id_foreign" {
+    columns     = ["node_id"]
+    ref_table   = "map_nodes"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "syllabus_node_entitlements_sku_id_foreign" {
+    columns     = ["sku_id"]
+    ref_table   = "skus"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_mne_node" {
+    columns = ["node_id"]
+  }
+
+  index "idx_mne_sku" {
+    columns = ["sku_id"]
+  }
+
+  index "syllabus_node_entitlements_node_id_sku_id_unique" {
+    columns = ["node_id", "sku_id"]
+    unique  = true
+  }
+
+  layout {
+    x = 1120
+    y = 4198
+  }
+}
+
+table "map_nodes" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "map_id" {
+    type = "uuid"
+  }
+
+  column "parent_node_id" {
+    type = "uuid"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "title" {
+    type = "text"
+  }
+
+  column "node_type" {
+    type = "text"
+  }
+
+  column "position" {
+    type = "integer"
+    null = false
+  }
+
+  column "relative_offset_days" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "effective_sku_cache" {
+    type = "jsonb"
+  }
+
+  column "deleted_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "child_map_id" {
+    type = "uuid"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "syllabus_nodes_child_syllabus_id_foreign" {
+    columns     = ["child_map_id"]
+    ref_table   = "maps"
+    ref_columns = ["id"]
+    on_delete   = "set_null"
+  }
+
+  foreign_key "syllabus_nodes_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "syllabus_nodes_parent_node_id_foreign" {
+    columns     = ["parent_node_id"]
+    ref_table   = "map_nodes"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "syllabus_nodes_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "syllabus_nodes_syllabus_id_foreign" {
+    columns     = ["map_id"]
+    ref_table   = "maps"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "syllabus_nodes_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_mn_child_map" {
+    columns = ["child_map_id"]
+  }
+
+  index "idx_mn_deleted" {
+    columns = ["deleted_at"]
+  }
+
+  index "idx_mn_map" {
+    columns = ["map_id", "position"]
+  }
+
+  index "idx_mn_recursion" {
+    columns = ["parent_node_id"]
+  }
+
+  index "idx_mn_resource" {
+    columns = ["resource_id"]
+  }
+
+  index "idx_mn_sku_cache" {
+    columns = ["effective_sku_cache"]
+  }
+
+  index "map_nodes_child_name_unique" {
+    columns = ["map_id", "parent_node_id", "name"]
+    unique  = true
+  }
+
+  index "map_nodes_root_name_unique" {
+    columns = ["map_id", "name"]
+    unique  = true
+  }
+
+  layout {
+    x = 1480
+    y = 4056
+  }
+}
+
+table "maps" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "title" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "type" {
+    type = "text"
+    null = false
+    default = "'course-map'::text"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "syllabuses_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "syllabuses_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_syllabus_name" {
+    columns = ["name"]
+    unique  = true
+  }
+
+  layout {
+    x = 1840
+    y = 4687.5
+  }
+}
+
+table "migrations" {
+
+  column "id" {
+    type = "integer"
+    null = false
+    default = "nextval('migrations_id_seq'::regclass)"
+  }
+
+  column "name" {
+    type = "character varying(255)"
+  }
+
+  column "batch" {
+    type = "integer"
+  }
+
+  column "migration_time" {
+    type = "timestamp with time zone"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  layout {
+    x = 40
+    y = 1014.5
+  }
+}
+
+table "migrations_lock" {
+
+  column "index" {
+    type = "integer"
+    null = false
+    default = "nextval('migrations_lock_index_seq'::regclass)"
+  }
+
+  column "is_locked" {
+    type = "integer"
+  }
+
+  primary_key {
+    columns = ["index"]
+  }
+
+  layout {
+    x = 40
+    y = 1184.5
+  }
+}
+
+table "portfolio_delivery_targets" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "delivery_target_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "is_default" {
+    type = "boolean"
+    default = "false"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "portfolio_delivery_targets_delivery_target_id_foreign" {
+    columns     = ["delivery_target_id"]
+    ref_table   = "delivery_targets"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "portfolio_delivery_targets_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_pdt_portfolio" {
+    columns = ["portfolio_id"]
+  }
+
+  index "idx_pdt_target" {
+    columns = ["delivery_target_id"]
+  }
+
+  index "portfolio_delivery_targets_portfolio_id_delivery_target_id_uniq" {
+    columns = ["portfolio_id", "delivery_target_id"]
+    unique  = true
+  }
+
+  layout {
+    x = 1840
+    y = 1353
+  }
+}
+
+table "portfolios" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "parent_id" {
+    type = "uuid"
+  }
+
+  column "path" {
+    type = "ltree"
+  }
+
+  column "identifier" {
+    type = "text"
+    null = false
+  }
+
+  column "label" {
+    type = "text"
+    null = false
+  }
+
+  column "code" {
+    type = "text"
+  }
+
+  column "portfolio_type" {
+    type = "text"
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "position" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "portfolios_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "portfolios_parent_id_foreign" {
+    columns     = ["parent_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "portfolios_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_portfolio_code" {
+    columns = ["code"]
+    unique  = true
+  }
+
+  index "idx_portfolio_identifier" {
+    columns = ["parent_id", "identifier"]
+    unique  = true
+  }
+
+  index "idx_portfolio_parent" {
+    columns = ["parent_id"]
+  }
+
+  index "idx_portfolio_path" {
+    columns = ["path"]
+  }
+
+  index "idx_portfolio_root" {
+    columns = ["position"]
+  }
+
+  layout {
+    x = 2200
+    y = 2968
+  }
+}
+
+table "product_sync_runs" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "source_system" {
+    type = "text"
+    null = false
+  }
+
+  column "started_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "finished_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "status" {
+    type = "text"
+    null = false
+    default = "'RUNNING'::text"
+  }
+
+  column "records_synced" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "error_detail" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  index "idx_psr_source" {
+    columns = ["source_system", "started_at"]
+  }
+
+  layout {
+    x = 40
+    y = 1310.5
+  }
+}
+
+table "products" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "source_system" {
+    type = "text"
+    null = false
+  }
+
+  column "source_id" {
+    type = "text"
+    null = false
+  }
+
+  column "code" {
+    type = "text"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "synced_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  index "products_source_system_source_id_unique" {
+    columns = ["source_system", "source_id"]
+    unique  = true
+  }
+
+  layout {
+    x = 1840
+    y = 5281.5
+  }
+}
+
+table "publications" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "version_label" {
+    type = "text"
+    null = false
+  }
+
+  column "published_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "published_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "delivery_target_code" {
+    type = "text"
+  }
+
+  column "scheduling_mode" {
+    type = "text"
+    null = false
+  }
+
+  column "master_start_date" {
+    type = "date"
+  }
+
+  column "master_sku_code" {
+    type = "text"
+  }
+
+  column "manifest_snapshot" {
+    type = "jsonb"
+    null = false
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "resource_versions" {
+    type = "jsonb"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "publications_published_by_foreign" {
+    columns     = ["published_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "publications_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_pub_resource" {
+    columns = ["resource_id"]
+  }
+
+  index "idx_pub_resource_versions" {
+    columns = ["resource_versions"]
+  }
+
+  layout {
+    x = 1480
+    y = 3710
+  }
+}
+
+table "resource_dependencies" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "parent_resource_id" {
+    type = "uuid"
+  }
+
+  column "child_resource_id" {
+    type = "uuid"
+  }
+
+  column "role" {
+    type = "text"
+    null = false
+    default = "'component'::text"
+  }
+
+  column "position" {
+    type = "integer"
+    null = false
+    default = "0"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "resource_dependencies_child_resource_id_foreign" {
+    columns     = ["child_resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "resource_dependencies_parent_resource_id_foreign" {
+    columns     = ["parent_resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_rd_child" {
+    columns = ["child_resource_id"]
+  }
+
+  index "idx_rd_parent" {
+    columns = ["parent_resource_id", "role", "position"]
+  }
+
+  index "resource_dependencies_parent_resource_id_child_resource_id_role" {
+    columns = ["parent_resource_id", "child_resource_id", "role"]
+    unique  = true
+  }
+
+  layout {
+    x = 1480
+    y = 1911
+  }
+}
+
+table "resource_embeddings" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "embedding" {
+    type = "vector(768)"
+  }
+
+  column "content_chunk" {
+    type = "text"
+  }
+
+  column "chunk_index" {
+    type = "integer"
+    default = "0"
+  }
+
+  column "hash" {
+    type = "text"
+  }
+
+  column "model_version" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "resource_embeddings_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_re_hash_lookup" {
+    columns = ["resource_id", "hash", "model_version"]
+  }
+
+  index "idx_re_resource_chunk" {
+    columns = ["resource_id", "chunk_index"]
+    unique  = true
+  }
+
+  index "idx_vector_hnsw" {
+    columns = ["embedding"]
+  }
+
+  layout {
+    x = 1480
+    y = 2147
+  }
+}
+
+table "resource_learning_objectives" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "learning_objective_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "resource_learning_objectives_learning_objective_id_foreign" {
+    columns     = ["learning_objective_id"]
+    ref_table   = "learning_objectives"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "resource_learning_objectives_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_rlo_lo_resource" {
+    columns = ["learning_objective_id", "resource_id"]
+  }
+
+  index "resource_learning_objectives_resource_id_learning_objective_id_" {
+    columns = ["resource_id", "learning_objective_id"]
+    unique  = true
+  }
+
+  layout {
+    x = 1480
+    y = 2427
+  }
+}
+
+table "resource_tags" {
+
+  column "resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "tag_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["resource_id", "tag_id"]
+  }
+
+  foreign_key "resource_tag_links_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "resource_tag_links_tag_id_foreign" {
+    columns     = ["tag_id"]
+    ref_table   = "tags"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  layout {
+    x = 1480
+    y = 2996.5
+  }
+}
+
+table "resource_taxonomy_nodes" {
+
+  column "resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "taxonomy_node_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "is_primary" {
+    type = "boolean"
+    default = "false"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["resource_id", "taxonomy_node_id"]
+  }
+
+  foreign_key "resource_taxonomy_links_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "resource_taxonomy_links_taxonomy_node_id_foreign" {
+    columns     = ["taxonomy_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_rtn_node" {
+    columns = ["taxonomy_node_id"]
+  }
+
+  index "idx_rtn_resource" {
+    columns = ["resource_id"]
+  }
+
+  layout {
+    x = 1120
+    y = 4691
+  }
+}
+
+table "resources" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+  }
+
+  column "title" {
+    type = "text"
+  }
+
+  column "type" {
+    type = "text"
+    null = false
+  }
+
+  column "href" {
+    type = "text"
+  }
+
+  column "content_hash" {
+    type = "text"
+  }
+
+  column "raw_xml" {
+    type = "xml"
+  }
+
+  column "dita_type" {
+    type = "text"
+  }
+
+  column "xml_declaration" {
+    type = "text"
+  }
+
+  column "content" {
+    type = "jsonb"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "internal_reference" {
+    type = "text"
+  }
+
+  column "source_uri" {
+    type = "text"
+  }
+
+  column "is_current" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "version_number" {
+    type = "integer"
+    default = "1"
+  }
+
+  column "root_resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "publishing_status" {
+    type = "text"
+    null = false
+    default = "'DRAFT'::text"
+  }
+
+  column "published_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "retired_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "archived_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "content_scope" {
+    type = "text"
+    null = false
+    default = "'independent'::text"
+  }
+
+  column "interaction_type" {
+    type = "text"
+  }
+
+  column "search_vector" {
+    type = "tsvector"
+    default = "(((setweight(to_tsvector('english'::regconfig, COALESCE(name, ''::text)), 'A'::\"char\") || setweight(to_tsvector('english'::regconfig, COALESCE(title, ''::text)), 'A'::\"char\")) || setweight(to_tsvector('english'::regconfig, ((COALESCE(replace(interaction_type, '-'::text, ' '::text), ''::text) || ' '::text) || extract_search_text(type, COALESCE(content, '{}'::jsonb)))), 'B'::\"char\")) || setweight(to_tsvector('english'::regconfig, COALESCE((metadata)::text, ''::text)), 'C'::\"char\"))"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "resources_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "resources_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+    on_delete   = "set_null"
+  }
+
+  foreign_key "resources_root_resource_fk" {
+    columns     = ["root_resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "resources_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_one_draft_per_root" {
+    columns = ["root_resource_id"]
+    unique  = true
+  }
+
+  index "idx_one_live_per_root" {
+    columns = ["root_resource_id"]
+    unique  = true
+  }
+
+  index "idx_res_content_scope" {
+    columns = ["content_scope"]
+  }
+
+  index "idx_res_fts" {
+    columns = ["search_vector"]
+  }
+
+  index "idx_res_hash" {
+    columns = ["content_hash"]
+  }
+
+  index "idx_res_interaction_type" {
+    columns = ["interaction_type"]
+  }
+
+  index "idx_res_internal_ref" {
+    columns = ["internal_reference"]
+    unique  = true
+  }
+
+  index "idx_res_meta" {
+    columns = ["metadata"]
+  }
+
+  index "idx_res_name" {
+    columns = ["name"]
+  }
+
+  index "idx_res_portfolio" {
+    columns = ["portfolio_id"]
+  }
+
+  index "idx_res_publishing_status" {
+    columns = ["publishing_status"]
+  }
+
+  index "idx_res_root" {
+    columns = ["root_resource_id"]
+  }
+
+  index "idx_res_root_current" {
+    columns = ["root_resource_id", "is_current"]
+  }
+
+  index "idx_res_root_current_unique" {
+    columns = ["root_resource_id"]
+    unique  = true
+  }
+
+  index "idx_res_updated" {
+    columns = ["updated_at"]
+  }
+
+  index "idx_unique_name_per_portfolio" {
+    columns = ["portfolio_id", "name"]
+    unique  = true
+  }
+
+  layout {
+    x = 1840
+    y = 2667
+  }
+}
+
+table "review_comments" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "parent_comment_id" {
+    type = "uuid"
+  }
+
+  column "author_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "author_role" {
+    type = "text"
+  }
+
+  column "body" {
+    type = "text"
+    null = false
+  }
+
+  column "anchor_position" {
+    type = "bytea"
+  }
+
+  column "anchor_field" {
+    type = "text"
+  }
+
+  column "status" {
+    type = "text"
+    null = false
+    default = "'OPEN'::text"
+  }
+
+  column "resolved_by" {
+    type = "uuid"
+  }
+
+  column "resolved_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "publishing_status_at_creation" {
+    type = "text"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "review_comments_author_id_foreign" {
+    columns     = ["author_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "review_comments_parent_comment_id_foreign" {
+    columns     = ["parent_comment_id"]
+    ref_table   = "review_comments"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "review_comments_resolved_by_foreign" {
+    columns     = ["resolved_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "review_comments_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_rc_resource" {
+    columns = ["resource_id", "status"]
+  }
+
+  index "idx_rc_thread" {
+    columns = ["parent_comment_id"]
+  }
+
+  layout {
+    x = 1480
+    y = 3290
+  }
+}
+
+table "role_view_access" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "role_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "view_key" {
+    type = "text"
+    null = false
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "role_view_access_role_id_foreign" {
+    columns     = ["role_id"]
+    ref_table   = "roles"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_role_view_access_role" {
+    columns = ["role_id"]
+  }
+
+  index "role_view_access_role_id_view_key_unique" {
+    columns = ["role_id", "view_key"]
+    unique  = true
+  }
+
+  layout {
+    x = 2200
+    y = 1163
+  }
+}
+
+table "roles" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+    unique = true
+  }
+
+  column "label" {
+    type = "text"
+    null = false
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "icon_name" {
+    type = "text"
+  }
+
+  column "default_route" {
+    type = "text"
+  }
+
+  column "is_built_in" {
+    type = "boolean"
+    null = false
+    default = "false"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  layout {
+    x = 2560
+    y = 860
+  }
+}
+
+table "skus" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "product_id" {
+    type = "uuid"
+  }
+
+  column "sku_code" {
+    type = "text"
+    null = false
+    unique = true
+  }
+
+  column "source_system" {
+    type = "text"
+  }
+
+  column "source_id" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "synced_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "skus_product_id_foreign" {
+    columns     = ["product_id"]
+    ref_table   = "products"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  layout {
+    x = 1480
+    y = 5281.5
+  }
+}
+
+table "tags" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "name" {
+    type = "text"
+    null = false
+    unique = true
+  }
+
+  column "title" {
+    type = "text"
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "tag_type" {
+    type = "text"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+  }
+
+  column "archived_at" {
+    type = "timestamp with time zone"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "tags_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+    on_delete   = "set_null"
+  }
+
+  index "idx_tags_portfolio" {
+    columns = ["portfolio_id"]
+  }
+
+  layout {
+    x = 1840
+    y = 1589
+  }
+}
+
+table "taxonomies" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+  }
+
+  column "taxonomy_type_id" {
+    type = "text"
+  }
+
+  column "title" {
+    type = "text"
+    null = false
+  }
+
+  column "version_label" {
+    type = "text"
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "is_official" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "taxonomies_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "taxonomies_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "taxonomies_taxonomy_type_id_foreign" {
+    columns     = ["taxonomy_type_id"]
+    ref_table   = "taxonomy_types"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "taxonomies_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_tax_portfolio" {
+    columns = ["portfolio_id"]
+  }
+
+  index "idx_tax_type" {
+    columns = ["taxonomy_type_id"]
+  }
+
+  layout {
+    x = 1840
+    y = 3501
+  }
+}
+
+table "taxonomy_bridge" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "taxonomy_node_id" {
+    type = "uuid"
+  }
+
+  column "dita_id" {
+    type = "text"
+    null = false
+  }
+
+  column "taxonomy_name" {
+    type = "text"
+  }
+
+  column "program_context" {
+    type = "character varying(50)"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "taxonomy_bridge_taxonomy_node_id_foreign" {
+    columns     = ["taxonomy_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+  }
+
+  index "idx_tb_dita" {
+    columns = ["dita_id"]
+  }
+
+  index "idx_tb_node" {
+    columns = ["taxonomy_node_id"]
+  }
+
+  layout {
+    x = 1120
+    y = 4861
+  }
+}
+
+table "taxonomy_node_migrations" {
+
+  column "old_node_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "new_node_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "migration_type" {
+    type = "text"
+    default = "'EQUIVALENT'::text"
+  }
+
+  column "notes" {
+    type = "text"
+  }
+
+  primary_key {
+    columns = ["old_node_id", "new_node_id"]
+  }
+
+  foreign_key "taxonomy_node_migrations_new_node_id_foreign" {
+    columns     = ["new_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "taxonomy_node_migrations_old_node_id_foreign" {
+    columns     = ["old_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+  }
+
+  layout {
+    x = 1120
+    y = 5097
+  }
+}
+
+table "taxonomy_nodes" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "taxonomy_id" {
+    type = "uuid"
+  }
+
+  column "parent_id" {
+    type = "uuid"
+  }
+
+  column "node_path" {
+    type = "ltree"
+  }
+
+  column "identifier" {
+    type = "text"
+    null = false
+  }
+
+  column "label" {
+    type = "text"
+    null = false
+  }
+
+  column "code" {
+    type = "text"
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  column "case_guid" {
+    type = "uuid"
+  }
+
+  column "metadata" {
+    type = "jsonb"
+  }
+
+  column "position" {
+    type = "integer"
+  }
+
+  column "created_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "updated_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "taxonomy_nodes_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "taxonomy_nodes_parent_id_foreign" {
+    columns     = ["parent_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "taxonomy_nodes_taxonomy_id_foreign" {
+    columns     = ["taxonomy_id"]
+    ref_table   = "taxonomies"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "taxonomy_nodes_updated_by_foreign" {
+    columns     = ["updated_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  index "idx_node_parent" {
+    columns = ["parent_id"]
+  }
+
+  index "idx_node_path" {
+    columns = ["node_path"]
+  }
+
+  index "taxonomy_nodes_taxonomy_id_identifier_unique" {
+    columns = ["taxonomy_id", "identifier"]
+    unique  = true
+  }
+
+  layout {
+    x = 1480
+    y = 5561.5
+  }
+}
+
+table "taxonomy_prerequisites" {
+
+  column "target_node_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "required_node_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "strength_weight" {
+    type = "real"
+    default = "'1'::real"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["target_node_id", "required_node_id"]
+  }
+
+  foreign_key "taxonomy_prerequisites_required_node_id_foreign" {
+    columns     = ["required_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "taxonomy_prerequisites_target_node_id_foreign" {
+    columns     = ["target_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+  }
+
+  layout {
+    x = 1120
+    y = 5267
+  }
+}
+
+table "taxonomy_product_links" {
+
+  column "taxonomy_node_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "sku_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["taxonomy_node_id", "sku_id"]
+  }
+
+  foreign_key "taxonomy_product_links_sku_id_foreign" {
+    columns     = ["sku_id"]
+    ref_table   = "skus"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "taxonomy_product_links_taxonomy_node_id_foreign" {
+    columns     = ["taxonomy_node_id"]
+    ref_table   = "taxonomy_nodes"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  layout {
+    x = 1120
+    y = 5540.5
+  }
+}
+
+table "taxonomy_types" {
+
+  column "id" {
+    type = "text"
+    null = false
+  }
+
+  column "icon" {
+    type = "text"
+  }
+
+  column "description" {
+    type = "text"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  layout {
+    x = 2200
+    y = 3659.5
+  }
+}
+
+table "user_access_grants" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "user_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "portfolio_id" {
+    type = "uuid"
+  }
+
+  column "course_id" {
+    type = "uuid"
+  }
+
+  column "role" {
+    type = "text"
+    null = false
+  }
+
+  column "granted_by" {
+    type = "uuid"
+    null = false
+  }
+
+  column "expires_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "user_access_grants_course_id_foreign" {
+    columns     = ["course_id"]
+    ref_table   = "courses"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "user_access_grants_granted_by_foreign" {
+    columns     = ["granted_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "user_access_grants_portfolio_id_foreign" {
+    columns     = ["portfolio_id"]
+    ref_table   = "portfolios"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "user_access_grants_user_id_foreign" {
+    columns     = ["user_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_grants_course" {
+    columns = ["course_id"]
+  }
+
+  index "idx_grants_expires" {
+    columns = ["expires_at"]
+  }
+
+  index "idx_grants_portfolio" {
+    columns = ["portfolio_id"]
+  }
+
+  index "idx_grants_unique" {
+    columns = ["user_id", "role"]
+    unique  = true
+  }
+
+  index "idx_grants_user" {
+    columns = ["user_id"]
+  }
+
+  layout {
+    x = 1120
+    y = 6093
+  }
+}
+
+table "user_roles" {
+
+  column "user_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "role_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["user_id", "role_id"]
+  }
+
+  foreign_key "user_roles_role_id_foreign" {
+    columns     = ["role_id"]
+    ref_table   = "roles"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  foreign_key "user_roles_user_id_foreign" {
+    columns     = ["user_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_user_roles_role" {
+    columns = ["role_id"]
+  }
+
+  layout {
+    x = 2200
+    y = 1440
+  }
+}
+
+table "user_view_access" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "user_id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "view_key" {
+    type = "text"
+    null = false
+  }
+
+  column "access" {
+    type = "text"
+    null = false
+    default = "'inherit'::text"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "user_view_access_user_id_foreign" {
+    columns     = ["user_id"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_user_view_access_user" {
+    columns = ["user_id"]
+  }
+
+  index "user_view_access_user_id_view_key_unique" {
+    columns = ["user_id", "view_key"]
+    unique  = true
+  }
+
+  layout {
+    x = 2200
+    y = 1588
+  }
+}
+
+table "users" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "user_type" {
+    type = "text"
+    null = false
+    default = "'HUMAN'::text"
+  }
+
+  column "email" {
+    type = "text"
+  }
+
+  column "display_name" {
+    type = "text"
+    null = false
+  }
+
+  column "avatar_url" {
+    type = "text"
+  }
+
+  column "roles" {
+    type = "text[]"
+    null = false
+    default = "'{}'::text[]"
+  }
+
+  column "last_login_at" {
+    type = "timestamp with time zone"
+  }
+
+  column "is_active" {
+    type = "boolean"
+    default = "true"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  column "updated_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  index "idx_users_email" {
+    columns = ["email"]
+    unique  = true
+  }
+
+  index "idx_users_type" {
+    columns = ["user_type"]
+  }
+
+  layout {
+    x = 2682.9927416349274
+    y = 2344.1840163724255
+  }
+}
+
+table "yjs_snapshots" {
+
+  column "id" {
+    type = "uuid"
+    null = false
+    default = "gen_random_uuid()"
+  }
+
+  column "resource_id" {
+    type = "uuid"
+  }
+
+  column "binary_blob" {
+    type = "bytea"
+    null = false
+  }
+
+  column "version_number" {
+    type = "integer"
+    null = false
+  }
+
+  column "created_by" {
+    type = "uuid"
+  }
+
+  column "created_at" {
+    type = "timestamp with time zone"
+    default = "CURRENT_TIMESTAMP"
+  }
+
+  primary_key {
+    columns = ["id"]
+  }
+
+  foreign_key "yjs_snapshots_created_by_foreign" {
+    columns     = ["created_by"]
+    ref_table   = "users"
+    ref_columns = ["id"]
+  }
+
+  foreign_key "yjs_snapshots_resource_id_foreign" {
+    columns     = ["resource_id"]
+    ref_table   = "resources"
+    ref_columns = ["id"]
+    on_delete   = "cascade"
+  }
+
+  index "idx_yjs_resource" {
+    columns = ["resource_id", "version_number"]
+  }
+
+  layout {
+    x = 1480
+    y = 4542
+  }
+}

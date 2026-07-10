@@ -1,0 +1,63 @@
+name: release
+
+# Trigger a full release when a semver-shaped tag is pushed.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# GoReleaser will:
+#   - build the frontend (via `before` hooks in .goreleaser.yaml)
+#   - cross-compile the Go binary for linux/darwin/windows × amd64/arm64
+#   - upload archives + checksums to the matching GitHub Release
+#   - open a PR / commit an updated Formula to erdlens/homebrew-tap
+#
+# Required repository secrets:
+#   HOMEBREW_TAP_GITHUB_TOKEN   PAT with `contents: write` on the
+#                               `erdlens/homebrew-tap` repo. Fine-grained token
+#                               scoped to that single repo is recommended.
+#
+# GITHUB_TOKEN is provided automatically and used for the release itself.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # goreleaser needs full history for the changelog
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: web
+        run: npm ci
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Falls back to GITHUB_TOKEN if not set, but that can only push to the
+          # same repo — set HOMEBREW_TAP_GITHUB_TOKEN to enable the tap update.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
