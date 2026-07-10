@@ -63,7 +63,7 @@ jobs:
 
       - name: Smoke test binary
         run: |
-          /tmp/erdlens version
+          /tmp/erdlens --version
           /tmp/erdlens --help
           /tmp/erdlens generate --help
           /tmp/erdlens view --help
