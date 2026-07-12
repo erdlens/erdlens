@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -39,22 +38,13 @@ output — this is the promise that keeps diffs clean.`,
 				return errors.New("--dsn is required")
 			}
 
-			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
-			defer cancel()
-
-			ins, err := introspect.Open(ctx, dsn)
-			if err != nil {
-				return fmt.Errorf("connect: %w", err)
-			}
-			defer func() { _ = ins.Close() }()
-
-			s, err := ins.Introspect(ctx, introspect.Options{
+			s, err := introspectDSN(cmd.Context(), dsn, introspect.Options{
 				Schemas: schemas,
 				Include: include,
 				Exclude: exclude,
-			})
+			}, timeout)
 			if err != nil {
-				return fmt.Errorf("introspect: %w", err)
+				return err
 			}
 
 			out, closeOut, err := openOutput(output)

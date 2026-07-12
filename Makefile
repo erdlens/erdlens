@@ -73,7 +73,8 @@ view-headless: build-go ## Serve the viewer without opening a browser
 	./$(BIN) view $(FILE) --addr $(ADDR) --no-browser
 
 .PHONY: run
-run: generate view ## Generate + view in one shot
+run: build-go ## Introspect $(DSN), save $(FILE), and open the viewer
+	./$(BIN) view --dsn '$(DSN)' -o $(FILE) --addr $(ADDR)
 
 ##@ Dev loop
 

@@ -22,19 +22,45 @@ func newViewCmd() *cobra.Command {
 	var (
 		addr      string
 		noBrowser bool
+		dsn       string
+		output    string
+		schemas   []string
+		include   []string
+		exclude   []string
+		timeout   time.Duration
 	)
 
 	cmd := &cobra.Command{
-		Use:   "view <file.erd>",
-		Short: "Open the interactive viewer for a local .erd file",
-		Long: `Load a local .erd file, spin up a localhost HTTP server, and open the
-embedded Svelte viewer in a browser. When you rearrange tables in the UI, the
-new positions are written back to the source file via POST /api/layout.
+		Use:   "view [file.erd]",
+		Short: "Open the interactive viewer for a .erd file or live database",
+		Long: `Load a schema and open the embedded Svelte viewer in a browser.
 
-The server binds to 127.0.0.1 only. No external services are contacted.`,
-		Args: cobra.ExactArgs(1),
+Pass a local .erd file, or use --dsn to introspect a live database in one step
+(written to a temp file under /tmp, or to -o if you want to keep it).
+
+When you rearrange tables in the UI, positions are written back to the source
+file via POST /api/layout.
+
+The server binds to 127.0.0.1 only.`,
+		Example: `  erdlens view schema.erd
+  erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb'
+  erdlens view --dsn "$DATABASE_URL" -o schema.erd`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			path := args[0]
+			var fileArg string
+			if len(args) > 0 {
+				fileArg = args[0]
+			}
+
+			path, cleanup, err := resolveViewPath(
+				cmd.Context(), fileArg, dsn, output,
+				schemas, include, exclude, timeout,
+			)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+
 			sc, err := loadSchema(path)
 			if err != nil {
 				return err
@@ -79,6 +105,13 @@ The server binds to 127.0.0.1 only. No external services are contacted.`,
 
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:0", "Address to bind (host:port, 0 = pick a free port)")
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Don't automatically open a browser")
+	cmd.Flags().StringVar(&dsn, "dsn", "", "Introspect a live database instead of reading a file")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "When using --dsn, write the .erd file here (default: temp file in /tmp)")
+	cmd.Flags().StringSliceVar(&schemas, "schema", []string{"public"}, "Schemas to include when using --dsn (Postgres)")
+	cmd.Flags().StringSliceVar(&include, "include", nil, "Glob patterns of table names to include when using --dsn")
+	cmd.Flags().StringSliceVar(&exclude, "exclude", nil, "Glob patterns of table names to exclude when using --dsn")
+	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Connection + introspection timeout when using --dsn")
+
 	return cmd
 }
 
@@ -96,15 +129,7 @@ func loadSchema(path string) (*schema.Schema, error) {
 }
 
 func saveSchema(path string, s *schema.Schema) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	if err := erdfile.Write(f, s); err != nil {
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
+	return writeSchema(path, s)
 }
 
 func openBrowser(url string) {

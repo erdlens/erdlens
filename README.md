@@ -20,15 +20,12 @@ Or grab a binary from the [Releases page](https://github.com/erdlens/erdlens/rel
 ## Quickstart
 
 ```sh
-# 1. Generate a versionable .erd file from a live Postgres DB
-erdlens generate \
-  --dsn 'postgres://user:pass@localhost:5432/mydb' \
-  -o schema.erd
+# Explore a live database in one command (temp file in /tmp)
+erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb'
 
-# 2. Commit schema.erd to git — it's clean, sorted, human-readable HCL
+# Or generate a versionable file, commit it, and view later
+erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb' -o schema.erd
 git add schema.erd && git commit -m "snapshot schema"
-
-# 3. Open the interactive viewer
 erdlens view schema.erd
 ```
 
@@ -40,6 +37,8 @@ Your browser opens with an interactive canvas: pan, zoom, click a table to highl
 |---|---|
 | `erdlens generate --dsn <dsn> -o <file>` | Introspect a live DB → write a `.erd` file |
 | `erdlens view <file>` | Open interactive viewer on a `.erd` file (offline) |
+| `erdlens view --dsn <dsn>` | Introspect a live DB and open the viewer (one step) |
+| `erdlens view --dsn <dsn> -o <file>` | Introspect, save `.erd`, and open the viewer |
 | `erdlens version` | Print version |
 
 All commands take `--help` for full flag documentation.
@@ -59,6 +58,12 @@ All commands take `--help` for full flag documentation.
 
 | Flag | Purpose |
 |---|---|
+| `--dsn` | Introspect a live database instead of reading a file |
+| `-o, --output` | When using `--dsn`, save the `.erd` here (default: temp file in `/tmp`) |
+| `--schema` | Postgres schemas to include when using `--dsn` (default `public`) |
+| `--include` | Glob patterns of table names to include when using `--dsn` |
+| `--exclude` | Glob patterns of table names to exclude when using `--dsn` |
+| `--timeout` | Connection + introspection timeout when using `--dsn` (default `30s`) |
 | `--addr` | Bind address (default `127.0.0.1:0`, OS-assigned port) |
 | `--no-browser` | Don't auto-open the browser |
 
@@ -146,7 +151,7 @@ make deps        # go mod tidy + npm install
 make build       # frontend + Go binary → bin/erdlens
 
 # Common tasks
-make run                    # generate + view against default DSN
+make run                    # introspect + save + view against default DSN
 make generate DSN='...'     # override the DSN
 make view FILE=my.erd       # view a specific file
 make test                   # go tests
