@@ -9,6 +9,8 @@ erdlens does three things no other tool does together:
 2. **View** it interactively in a local browser, fully offline (`erdlens view`)
 3. **Ship as a single binary** you can `brew install`
 
+![erdlens interactive viewer](docs/screen-recording.gif)
+
 ## Install
 
 ```sh
