@@ -17,6 +17,17 @@
   import { matchesView } from './glob'
   import TableNode from './TableNode.svelte'
 
+  /** When set, skip GET /api/schema and use this schema (static / Pages mode). */
+  export let initialSchema: Schema | null = null
+  /**
+   * Optional layout persist hook for static mode.
+   * Receives the schema with updated table.layout values.
+   * When unset, falls back to POST /api/layout (CLI embedded viewer).
+   */
+  export let persistSchema: ((s: Schema) => Promise<void> | void) | null = null
+  /** Optional header control rendered in the sidebar footer area. */
+  export let onClose: (() => void) | null = null
+
   const nodeTypes = { table: TableNode }
   const nodes = writable<Node[]>([])
   const edges = writable<Edge[]>([])
@@ -134,9 +145,13 @@
 
   async function load() {
     try {
-      const res = await fetch('/api/schema')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      schema = await res.json()
+      if (initialSchema) {
+        schema = initialSchema
+      } else {
+        const res = await fetch('/api/schema')
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        schema = await res.json()
+      }
       buildAdjacency()
       build()
       const hash = decodeURIComponent(location.hash.slice(1))
@@ -375,13 +390,28 @@
     saveTimer = setTimeout(saveLayout, 400)
   }
 
+  function syncLayoutToSchema() {
+    if (!schema) return
+    const current = get(nodes)
+    for (const t of schema.tables) {
+      const n = current.find((node) => node.id === t.name)
+      if (n) t.layout = { x: n.position.x, y: n.position.y }
+    }
+  }
+
   async function saveLayout() {
     // Positions during isolate mode are ephemeral by design — they get
     // restored when isolate is turned off. Don't persist them to the .erd file.
-    if (isolate) return
-    const current = get(nodes)
+    if (isolate || !schema) return
+    syncLayoutToSchema()
+
+    // Static / Pages mode: keep layout in memory until the user downloads.
+    if (persistSchema) return
+
     const payload: Record<string, { x: number; y: number }> = {}
-    for (const n of current) payload[n.id] = n.position
+    for (const t of schema.tables) {
+      if (t.layout) payload[t.name] = t.layout
+    }
     try {
       await fetch('/api/layout', {
         method: 'POST',
@@ -390,6 +420,16 @@
       })
     } catch (e) {
       console.warn('layout save failed', e)
+    }
+  }
+
+  async function downloadErd() {
+    if (!schema || !persistSchema) return
+    syncLayoutToSchema()
+    try {
+      await persistSchema(schema)
+    } catch (e) {
+      error = `download failed: ${(e as Error).message}`
     }
   }
 
@@ -460,6 +500,9 @@
     <div class="brand">
       <span class="dot"></span>
       erdlens
+      {#if onClose}
+        <button class="tool close" title="Close file" on:click={onClose}>✕</button>
+      {/if}
     </div>
 
     <div class="toolbar">
@@ -502,6 +545,15 @@
       >
         ⤓ SVG
       </button>
+      {#if persistSchema}
+        <button
+          class="tool"
+          title="Download .erd with current layout"
+          on:click={downloadErd}
+        >
+          ⤓ .erd
+        </button>
+      {/if}
     </div>
 
     {#if schema?.views && schema.views.length > 0}
@@ -624,6 +676,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .brand .close {
+    margin-left: auto;
   }
   .dot {
     width: 8px;

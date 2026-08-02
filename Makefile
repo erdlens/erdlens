@@ -52,9 +52,34 @@ build-go: ## Build the Go binary (assumes web/dist is already built)
 web: ## Build the Svelte frontend into web/dist/
 	cd web && npm run build
 
+.PHONY: wasm
+wasm: ## Build parse-only WASM for the GitHub Pages playground
+	@mkdir -p web/public-pages/wasm
+	@rm -f web/public-pages/wasm/wasm_exec.js
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" web/public-pages/wasm/wasm_exec.js
+	GOOS=js GOARCH=wasm go build -o web/public-pages/wasm/erdlens.wasm ./cmd/erdlens-wasm
+	@$(MAKE) check-wasm
+	@echo "→ web/public-pages/wasm/erdlens.wasm ($$(du -h web/public-pages/wasm/erdlens.wasm | cut -f1))"
+
+.PHONY: pages
+pages: wasm ## Build the static GitHub Pages playground into web/pages-dist/
+	cd web && npm run build:pages
+	@echo "→ web/pages-dist/"
+
+.PHONY: check-wasm
+check-wasm: ## Fail if WASM contains DB driver / DSN code
+	@test -f web/public-pages/wasm/erdlens.wasm || (echo "missing WASM; run make wasm" && exit 1)
+	@if strings web/public-pages/wasm/erdlens.wasm | grep -Eiq 'jackc/pgx|pgx/v5|postgres://|pgxpool|database/sql'; then \
+		echo "❌ WASM contains database connection symbols — keep cmd/erdlens-wasm free of introspect/pgx"; \
+		strings web/public-pages/wasm/erdlens.wasm | grep -Ei 'jackc/pgx|pgx/v5|postgres://|pgxpool|database/sql' | head -20; \
+		exit 1; \
+	else \
+		echo "✅ WASM has no database connection symbols"; \
+	fi
+
 .PHONY: clean
 clean: ## Remove build artifacts
-	rm -rf bin web/dist/assets web/dist/index-*.html
+	rm -rf bin web/dist/assets web/dist/index-*.html web/pages-dist web/public-pages/wasm/erdlens.wasm
 	@echo "→ cleaned"
 
 ##@ Run

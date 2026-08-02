@@ -12,6 +12,9 @@ vendor/
 web/node_modules/
 web/dist/*
 !web/dist/.gitkeep
+web/pages-dist/
+web/public-pages/wasm/erdlens.wasm
+web/public-pages/wasm/wasm_exec.js
 
 # Editor / OS
 .DS_Store

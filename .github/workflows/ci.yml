@@ -69,6 +69,9 @@ jobs:
           /tmp/erdlens generate --help
           /tmp/erdlens view --help
 
+      - name: Build parse-only WASM (no DB code)
+        run: make wasm
+
   lint:
     runs-on: ubuntu-latest
     steps:

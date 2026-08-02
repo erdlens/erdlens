@@ -1,10 +1,14 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, type Plugin, type UserConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = fileURLToPath(new URL('.', import.meta.url))
 
 const allowedUrl =
   /^https?:\/\/(localhost|127\.0\.0\.1|www\.w3\.org)([:/]|$)/
 
-/** Remove third-party URLs from production chunks so the embedded viewer stays offline-safe. */
+/** Remove third-party URLs from the CLI-embedded bundle (offline-safe). */
 function stripExternalUrls(): Plugin {
   const strip = (source: string) =>
     source.replace(/https?:\/\/[^"'\s<>\\]+/g, (url) =>
@@ -23,20 +27,44 @@ function stripExternalUrls(): Plugin {
   }
 }
 
-// During `npm run dev`, proxy /api to a running `erdlens view` on 8787.
-// In production the same server serves the built bundle directly.
-export default defineConfig({
-  plugins: [svelte(), stripExternalUrls()],
-  server: {
-    proxy: {
-      '/api': 'http://127.0.0.1:8787',
+/** Emit pages.html as index.html for GitHub Pages. */
+function pagesIndexHtml(): Plugin {
+  return {
+    name: 'pages-index-html',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      const page = bundle['pages.html']
+      if (page && page.type === 'asset') {
+        page.fileName = 'index.html'
+      }
     },
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    target: 'es2020',
-    // Keep assets inlined so the embedded bundle stays a small handful of files.
-    assetsInlineLimit: 4096,
-  },
+  }
+}
+
+export default defineConfig(({ mode }): UserConfig => {
+  const isPages = mode === 'pages'
+
+  return {
+    base: isPages ? './' : '/',
+    plugins: [
+      svelte(),
+      ...(isPages ? [pagesIndexHtml()] : [stripExternalUrls()]),
+    ],
+    // Pages assets (WASM) live in public-pages/; CLI embed uses empty/default public/.
+    publicDir: isPages ? 'public-pages' : false,
+    server: {
+      proxy: {
+        '/api': 'http://127.0.0.1:8787',
+      },
+    },
+    build: {
+      outDir: isPages ? 'pages-dist' : 'dist',
+      emptyOutDir: true,
+      target: 'es2020',
+      assetsInlineLimit: 4096,
+      rollupOptions: isPages
+        ? { input: resolve(root, 'pages.html') }
+        : undefined,
+    },
+  }
 })

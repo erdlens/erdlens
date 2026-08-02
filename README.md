@@ -33,6 +33,20 @@ erdlens view schema.erd
 
 Your browser opens with an interactive canvas: pan, zoom, click a table to highlight its relationships, drag tables around (positions save back to the file).
 
+## Browser playground (GitHub Pages)
+
+Prefer not to install anything? Open the static playground, upload a `.erd` file, and visualize it in the browser:
+
+**https://erdlens.github.io/erdlens/**
+
+Parsing runs locally via a **parse-only WASM** build (`erdfile` + `schema` only — no database drivers, no DSN handling). Layout changes stay in memory until you click **⤓ .erd** to download.
+
+```sh
+make pages          # build WASM + static site → web/pages-dist/
+make check-wasm     # assert the .wasm has no pgx / postgres:// symbols
+cd web && npm run preview:pages
+```
+
 ## Commands
 
 | Command | Purpose |
@@ -159,10 +173,13 @@ make view FILE=my.erd       # view a specific file
 make test                   # go tests
 make check                  # vet + test
 make check-offline          # verify no external URLs in built dist/
+make pages                  # GitHub Pages playground → web/pages-dist/
+make check-wasm             # assert WASM has no DB driver symbols
 
 # Dev loop with hot reload
 make dev-api   # terminal 1: Go server on :8787
 make dev-web   # terminal 2: Vite on :5173
+cd web && npm run dev:pages   # static playground (needs make wasm first)
 ```
 
 Run `make help` for the full menu.
