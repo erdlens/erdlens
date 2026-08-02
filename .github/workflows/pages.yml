@@ -1,21 +1,24 @@
 name: pages
 
-# Publish the browser playground when a release tag is pushed.
+# Publish the browser playground after a successful release.
 #
-#   git tag v0.2.0 && git push origin v0.2.0
+# Triggered by the `release` workflow (tag push v*), not by the tag itself.
+# That way the job runs in the default-branch context and satisfies the
+# github-pages environment protection rules (which often block tags).
 #
-# Also runnable manually via workflow_dispatch.
+# Also runnable manually via workflow_dispatch (deploys the selected branch).
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_run:
+    workflows: [release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read # needed to inspect the triggering workflow_run
 
 concurrency:
   group: pages
@@ -23,9 +26,18 @@ concurrency:
 
 jobs:
   build:
+    # Skip failed/cancelled releases; always run on manual dispatch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out release commit
+        uses: actions/checkout@v6
+        with:
+          # For workflow_run: build the exact commit that was released.
+          # For workflow_dispatch: build the selected branch tip.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
