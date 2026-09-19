@@ -64,6 +64,7 @@ type pkBlock struct {
 type fkBlock struct {
 	Name       string   `hcl:"name,label"`
 	Columns    []string `hcl:"columns"`
+	RefSchema  string   `hcl:"ref_schema,optional"`
 	RefTable   string   `hcl:"ref_table"`
 	RefColumns []string `hcl:"ref_columns"`
 	OnDelete   string   `hcl:"on_delete,optional"`
@@ -144,6 +145,7 @@ func docToSchema(d *fileDoc) *schema.Schema {
 			t.ForeignKeys = append(t.ForeignKeys, schema.ForeignKey{
 				Name:       fk.Name,
 				Columns:    fk.Columns,
+				RefSchema:  fk.RefSchema,
 				RefTable:   fk.RefTable,
 				RefColumns: fk.RefColumns,
 				OnDelete:   fk.OnDelete,

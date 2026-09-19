@@ -63,14 +63,19 @@ docs/              User-facing documentation
   make test-roundtrip FILE=/path/to/real.erd
   ```
 - Postgres integration tests are TODO. If you have testcontainers-go experience, PRs welcome.
+- SQLite is covered by an in-memory unit test (`TestSQLiteIntrospect`).
+- MySQL integration is opt-in: `ERDLENS_MYSQL_DSN='mysql://…' go test ./internal/introspect/ -run MySQL`.
 
 ## Adding a new database driver
 
-1. Add the driver dep to `go.mod`.
+Drivers today: Postgres (`pgx`), MySQL/MariaDB (`go-sql-driver/mysql`), SQLite (`modernc.org/sqlite`, pure Go / CGO-free).
+
+1. Add the driver dep to `go.mod` (must stay CGO-free for goreleaser).
 2. Create `internal/introspect/<dialect>.go` implementing the `Introspector` interface.
 3. Register the DSN scheme in `introspect.Open` (see the switch statement in `introspect.go`).
 4. Add representative introspection queries — mirror the Postgres shape (tables, columns, PKs, FKs, unique constraints, indexes).
-5. Add a driver-specific test file. Real-world round-trip against a seeded local DB is the gold standard.
+5. Add a driver-specific test. Real-world round-trip against a seeded local DB is the gold standard.
+6. Keep drivers out of `cmd/erdlens-wasm`; extend `make check-wasm` greps if needed.
 
 ## File format changes
 

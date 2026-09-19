@@ -26,11 +26,13 @@ Describes the source of the schema.
 ```hcl
 meta {
   name    = "dbname"    # optional
-  dialect = "postgres"          # optional: postgres | mysql | sqlite | mssql
+  dialect = "postgres"  # optional: postgres | mysql | sqlite | mssql
 }
 ```
 
 Both fields are optional. If the block is empty, it's omitted from output entirely.
+
+For live introspection: MySQL/MariaDB map `schema` to the **database name**; SQLite omits `schema` (single-file catalog). Postgres uses namespaces (`public`, `auth`, …).
 
 ## `view` block
 
@@ -60,7 +62,7 @@ The core of an `.erd` file.
 
 ```hcl
 table "orders" {
-  schema  = "public"                    # optional; omitted when it's "public"
+  schema  = "public"                    # optional; omitted when it's the only schema and "public"
   comment = "Customer orders"           # optional
 
   column "id" {
@@ -101,6 +103,8 @@ table "orders" {
 }
 ```
 
+When a file contains tables from more than one Postgres schema, `schema = "public"` is written explicitly (and `ref_schema` likewise) so names stay unambiguous.
+
 ### `column` sub-block
 
 | Attribute | Type | Default | Purpose |
@@ -128,12 +132,15 @@ Every FK is labeled with its constraint name.
 ```hcl
 foreign_key "fk_orders_user" {
   columns     = ["user_id"]
+  ref_schema  = "auth"          # optional; omitted for public when single-schema
   ref_table   = "users"
   ref_columns = ["id"]
   on_delete   = "cascade"       # optional
   on_update   = "restrict"      # optional
 }
 ```
+
+`ref_schema` identifies the referenced table's Postgres schema. It is written whenever the target is non-`public`, and also for `public` when the file spans multiple schemas.
 
 Referential action values (both `on_delete` and `on_update`):
 
@@ -220,6 +227,12 @@ table_body  ::= ('schema' '=' STRING)?
 column      ::= 'column' STRING '{' column_attr* '}'
 primary_key ::= 'primary_key' '{' 'columns' '=' STRING_LIST '}'
 foreign_key ::= 'foreign_key' STRING '{' fk_attr+ '}'
+fk_attr     ::= 'columns' '=' STRING_LIST
+              | 'ref_schema' '=' STRING
+              | 'ref_table' '=' STRING
+              | 'ref_columns' '=' STRING_LIST
+              | 'on_delete' '=' STRING
+              | 'on_update' '=' STRING
 index       ::= 'index' STRING '{' 'columns' '=' STRING_LIST ('unique' '=' 'true')? '}'
 layout      ::= 'layout' '{' 'x' '=' NUMBER 'y' '=' NUMBER '}'
 ```

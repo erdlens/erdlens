@@ -15,6 +15,13 @@
   import type { Schema, View, Table } from './types'
   import { autoLayout, isolatedLayout, nodeHeight, NODE_WIDTH } from './layout'
   import { matchesView } from './glob'
+  import {
+    tableId,
+    refTableId,
+    tableLabel,
+    schemaName,
+    distinctSchemas,
+  } from './tableId'
   import TableNode from './TableNode.svelte'
 
   /** When set, skip GET /api/schema and use this schema (static / Pages mode). */
@@ -45,6 +52,10 @@
 
   let adjacency = new Map<string, Set<string>>()
 
+  // empty Set means "all" until schemas discovered
+  let enabledSchemas: Set<string> = new Set()
+  let schemasInitialized = false
+
   // Snapshot of pre-isolate positions. Non-null while isolate mode is active.
   // We restore from this when isolate is turned off, so users don't lose their
   // hand-arranged layout after exploring a subgraph.
@@ -56,6 +67,16 @@
     activeViewName && schema?.views
       ? (schema.views.find((v) => v.name === activeViewName) ?? null)
       : null
+
+  $: availableSchemas = schema ? distinctSchemas(schema.tables) : []
+  $: if (schema && !schemasInitialized && availableSchemas.length > 0) {
+    enabledSchemas = new Set(availableSchemas)
+    schemasInitialized = true
+  }
+
+  $: tableById = schema
+    ? new Map(schema.tables.map((t) => [tableId(t), t]))
+    : new Map<string, Table>()
 
   $: matchedColumns = computeColumnMatches(schema, search)
 
@@ -74,10 +95,29 @@
             !activeView ||
             matchesView(t.name, activeView.include, activeView.exclude),
         )
+        .filter((t) => schemaEnabled(t))
         .filter((t) => tableMatchesSearch(t, search, matchedColumns))
     : []
 
   $: edgeCount = $edges.length
+
+  function schemaEnabled(t: Table): boolean {
+    if (availableSchemas.length <= 1) return true
+    if (enabledSchemas.size === 0) return true
+    return enabledSchemas.has(schemaName(t))
+  }
+
+  function toggleSchema(s: string) {
+    const next = new Set(enabledSchemas)
+    if (next.has(s)) {
+      // Don't allow unchecking the last schema
+      if (next.size <= 1) return
+      next.delete(s)
+    } else {
+      next.add(s)
+    }
+    enabledSchemas = next
+  }
 
   function tableMatchesSearch(
     t: Table,
@@ -86,7 +126,12 @@
   ): boolean {
     if (!term) return true
     const q = term.toLowerCase()
-    return t.name.toLowerCase().includes(q) || cols.has(t.name)
+    const id = tableId(t)
+    return (
+      t.name.toLowerCase().includes(q) ||
+      id.toLowerCase().includes(q) ||
+      cols.has(id)
+    )
   }
 
   function computeColumnMatches(
@@ -100,7 +145,7 @@
       const hits = t.columns
         .filter((c) => c.name.toLowerCase().includes(q))
         .map((c) => c.name)
-      if (hits.length > 0) result.set(t.name, new Set(hits))
+      if (hits.length > 0) result.set(tableId(t), new Set(hits))
     }
     return result
   }
@@ -118,7 +163,7 @@
     // Highlight every PK and every FK column on the selected table itself,
     // so a click makes the table's "identity" (PKs) and "relationships" (FKs)
     // pop even when a neighbor isn't visible on screen.
-    const selTable = sch.tables.find((t) => t.name === sel)
+    const selTable = sch.tables.find((t) => tableId(t) === sel)
     if (selTable) {
       for (const c of selTable.primary_key ?? []) add(sel, c)
       for (const fk of selTable.foreign_keys ?? []) {
@@ -126,14 +171,16 @@
       }
     }
     for (const t of sch.tables) {
+      const tid = tableId(t)
       for (const fk of t.foreign_keys ?? []) {
-        if (t.name === sel) {
+        const refId = refTableId(fk)
+        if (tid === sel) {
           // outgoing FK from the selected table
-          fk.columns.forEach((c) => add(t.name, c))
-          fk.ref_columns.forEach((c) => add(fk.ref_table, c))
-        } else if (fk.ref_table === sel) {
+          fk.columns.forEach((c) => add(tid, c))
+          fk.ref_columns.forEach((c) => add(refId, c))
+        } else if (refId === sel) {
           // incoming FK to the selected table
-          fk.columns.forEach((c) => add(t.name, c))
+          fk.columns.forEach((c) => add(tid, c))
           fk.ref_columns.forEach((c) => add(sel, c))
         }
       }
@@ -145,6 +192,7 @@
 
   async function load() {
     try {
+      schemasInitialized = false
       if (initialSchema) {
         schema = initialSchema
       } else {
@@ -155,9 +203,17 @@
       buildAdjacency()
       build()
       const hash = decodeURIComponent(location.hash.slice(1))
-      if (hash && schema!.tables.some((t) => t.name === hash)) {
-        await tick()
-        selectTable(hash, true)
+      if (hash) {
+        const byId = schema!.tables.find((t) => tableId(t) === hash)
+        const byBare =
+          byId ??
+          schema!.tables.find(
+            (t) => (!t.schema || t.schema === 'public') && t.name === hash,
+          )
+        if (byBare) {
+          await tick()
+          selectTable(tableId(byBare), true)
+        }
       }
     } catch (e) {
       error = (e as Error).message
@@ -167,14 +223,16 @@
   function buildAdjacency() {
     adjacency = new Map()
     if (!schema) return
-    const known = new Set(schema.tables.map((t) => t.name))
+    const known = new Set(schema.tables.map((t) => tableId(t)))
     for (const t of schema.tables) {
-      if (!adjacency.has(t.name)) adjacency.set(t.name, new Set())
+      const tid = tableId(t)
+      if (!adjacency.has(tid)) adjacency.set(tid, new Set())
       for (const fk of t.foreign_keys ?? []) {
-        if (!known.has(fk.ref_table)) continue
-        adjacency.get(t.name)!.add(fk.ref_table)
-        if (!adjacency.has(fk.ref_table)) adjacency.set(fk.ref_table, new Set())
-        adjacency.get(fk.ref_table)!.add(t.name)
+        const refId = refTableId(fk)
+        if (!known.has(refId)) continue
+        adjacency.get(tid)!.add(refId)
+        if (!adjacency.has(refId)) adjacency.set(refId, new Set())
+        adjacency.get(refId)!.add(tid)
       }
     }
   }
@@ -186,33 +244,38 @@
     const auto = allSaved ? new Map() : autoLayout(schema.tables)
 
     nodes.set(
-      schema.tables.map((t) => ({
-        id: t.name,
-        type: 'table',
-        position: t.layout ?? auto.get(t.name)!,
-        data: {
-          table: t,
-          highlighted: false,
-          dimmed: false,
-          matched: new Set<string>(),
-        },
-      })),
+      schema.tables.map((t) => {
+        const tid = tableId(t)
+        return {
+          id: tid,
+          type: 'table',
+          position: t.layout ?? auto.get(tid)!,
+          data: {
+            table: t,
+            highlighted: false,
+            dimmed: false,
+            matched: new Set<string>(),
+          },
+        }
+      }),
     )
 
-    const known = new Set(schema.tables.map((t) => t.name))
+    const known = new Set(schema.tables.map((t) => tableId(t)))
     const es: Edge[] = []
     for (const t of schema.tables) {
+      const tid = tableId(t)
       for (const fk of t.foreign_keys ?? []) {
-        if (!known.has(fk.ref_table)) continue
+        const refId = refTableId(fk)
+        if (!known.has(refId)) continue
         // Emit one edge per column pair so composite FKs render accurately and
         // each edge terminates at the exact column row on both ends.
         const pairs = Math.min(fk.columns.length, fk.ref_columns.length)
         for (let i = 0; i < pairs; i++) {
           es.push({
-            id: `${t.name}|${fk.name ?? fk.columns.join('_')}|${fk.ref_table}|${i}`,
-            source: t.name,
+            id: `${tid}|${fk.name ?? fk.columns.join('_')}|${refId}|${i}`,
+            source: tid,
             sourceHandle: fk.columns[i],
-            target: fk.ref_table,
+            target: refId,
             targetHandle: fk.ref_columns[i],
             type: 'smoothstep',
           })
@@ -224,7 +287,15 @@
 
   // --- Visibility + highlight (combined) ------------------------------------
 
-  $: applyState(selected, isolate, activeView, matchedColumns, relatedColumns)
+  $: applyState(
+    selected,
+    isolate,
+    activeView,
+    matchedColumns,
+    relatedColumns,
+    enabledSchemas,
+    availableSchemas,
+  )
 
   function applyState(
     sel: string | null,
@@ -232,9 +303,18 @@
     view: View | null,
     matched: Map<string, Set<string>>,
     related: Map<string, Set<string>>,
+    _enabled: Set<string>,
+    _schemas: string[],
   ) {
-    const inView = (name: string) =>
-      !view || matchesView(name, view.include, view.exclude)
+    const inView = (id: string) => {
+      if (!view) return true
+      const t = tableById.get(id)
+      return matchesView(t?.name ?? id, view.include, view.exclude)
+    }
+    const inSchema = (id: string) => {
+      const t = tableById.get(id)
+      return t ? schemaEnabled(t) : true
+    }
     const neighbors = sel
       ? (adjacency.get(sel) ?? new Set<string>())
       : new Set<string>()
@@ -243,11 +323,12 @@
     nodes.update((ns) =>
       ns.map((n) => {
         const outsideView = !inView(n.id)
+        const outsideSchema = !inSchema(n.id)
         const outsideFocus = focusSet !== null && !focusSet.has(n.id)
         const hiddenByIsolate = iso && sel !== null && outsideFocus
         return {
           ...n,
-          hidden: outsideView || hiddenByIsolate,
+          hidden: outsideView || outsideSchema || hiddenByIsolate,
           data: {
             ...n.data,
             highlighted: n.id === sel,
@@ -261,11 +342,12 @@
     edges.update((es) =>
       es.map((e) => {
         const bothInView = inView(e.source) && inView(e.target)
+        const bothInSchema = inSchema(e.source) && inSchema(e.target)
         const touches = sel && (e.source === sel || e.target === sel)
         const hiddenByIsolate = iso && sel !== null && !touches
         return {
           ...e,
-          hidden: !bothInView || hiddenByIsolate,
+          hidden: !bothInView || !bothInSchema || hiddenByIsolate,
           animated: !!touches,
           style:
             focusSet !== null && !touches
@@ -280,19 +362,19 @@
 
   // --- Selection + navigation -----------------------------------------------
 
-  function selectTable(name: string, focusCanvas = true) {
-    selected = name
-    history.replaceState(null, '', `#${encodeURIComponent(name)}`)
+  function selectTable(id: string, focusCanvas = true) {
+    selected = id
+    history.replaceState(null, '', `#${encodeURIComponent(id)}`)
 
     queueMicrotask(() => {
       document
-        .querySelector(`[data-tid="${CSS.escape(name)}"]`)
+        .querySelector(`[data-tid="${CSS.escape(id)}"]`)
         ?.scrollIntoView({ block: 'nearest' })
     })
 
     if (focusCanvas && schema) {
-      const node = get(nodes).find((n) => n.id === name)
-      const table = schema.tables.find((t) => t.name === name)
+      const node = get(nodes).find((n) => n.id === id)
+      const table = schema.tables.find((t) => tableId(t) === id)
       if (node && table) {
         const cx = node.position.x + NODE_WIDTH / 2
         const cy = node.position.y + nodeHeight(table) / 2
@@ -349,9 +431,9 @@
     if (!schema) return
     const neighbors = adjacency.get(sel) ?? new Set<string>()
     const focusTables = schema.tables.filter(
-      (t) => t.name === sel || neighbors.has(t.name),
+      (t) => tableId(t) === sel || neighbors.has(tableId(t)),
     )
-    if (!focusTables.some((t) => t.name === sel)) return
+    if (!focusTables.some((t) => tableId(t) === sel)) return
 
     const positions = isolatedLayout(focusTables, sel)
 
@@ -394,7 +476,7 @@
     if (!schema) return
     const current = get(nodes)
     for (const t of schema.tables) {
-      const n = current.find((node) => node.id === t.name)
+      const n = current.find((node) => node.id === tableId(t))
       if (n) t.layout = { x: n.position.x, y: n.position.y }
     }
   }
@@ -410,7 +492,7 @@
 
     const payload: Record<string, { x: number; y: number }> = {}
     for (const t of schema.tables) {
-      if (t.layout) payload[t.name] = t.layout
+      if (t.layout) payload[tableId(t)] = t.layout
     }
     try {
       await fetch('/api/layout', {
@@ -556,12 +638,30 @@
       {/if}
     </div>
 
+    {#if availableSchemas.length > 1}
+      <div class="schema-picker">
+        <div class="small muted">Schemas</div>
+        <div class="schema-list">
+          {#each availableSchemas as s (s)}
+            <label class="schema-item">
+              <input
+                type="checkbox"
+                checked={enabledSchemas.has(s)}
+                on:change={() => toggleSchema(s)}
+              />
+              <span>{s}</span>
+            </label>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     {#if schema?.views && schema.views.length > 0}
       <div class="view-picker">
         <label class="small muted" for="view-select">View</label>
         <select id="view-select" bind:value={activeViewName} class="select">
           <option value="">All tables</option>
-          {#each schema.views as v}
+          {#each schema.views as v (v.name)}
             <option value={v.name}>{v.name}</option>
           {/each}
         </select>
@@ -584,22 +684,22 @@
             · {[...matchedColumns.values()].reduce((n, s) => n + s.size, 0)} column hits
           {/if}
         </div>
-        {#each filteredTables as t (t.name)}
+        {#each filteredTables as t (tableId(t))}
           <button
             class="table-item"
-            class:selected={selected === t.name}
-            data-tid={t.name}
+            class:selected={selected === tableId(t)}
+            data-tid={tableId(t)}
             title={t.comment || ''}
-            on:click={() => selectTable(t.name, true)}
+            on:click={() => selectTable(tableId(t), true)}
           >
             <div class="row-top">
-              <span class="tname">{t.name}</span>
+              <span class="tname">{tableLabel(t)}</span>
               <span class="muted small counts">
                 {t.columns.length}c · {(t.foreign_keys ?? []).length}fk
               </span>
             </div>
-            {#if matchedColumns.has(t.name)}
-              {@const hits = matchedColumns.get(t.name) ?? new Set()}
+            {#if matchedColumns.has(tableId(t))}
+              {@const hits = matchedColumns.get(tableId(t)) ?? new Set()}
               <div class="col-hits muted small">
                 {[...hits].slice(0, 3).join(', ')}
                 {#if hits.size > 3}
@@ -714,6 +814,33 @@
   .tool:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+  .schema-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .schema-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+  }
+  .schema-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    cursor: pointer;
+    padding: 2px 2px;
+  }
+  .schema-item input {
+    margin: 0;
+    accent-color: var(--accent);
   }
   .view-picker {
     display: flex;

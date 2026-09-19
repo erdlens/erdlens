@@ -111,6 +111,13 @@ func (s *Server) handleLayout(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	for i := range s.schema.Tables {
+		id := schema.TableID(s.schema.Tables[i])
+		if l, ok := payload[id]; ok {
+			ll := l
+			s.schema.Tables[i].Layout = &ll
+			continue
+		}
+		// Backward compat: older viewers keyed layout by bare table name.
 		if l, ok := payload[s.schema.Tables[i].Name]; ok {
 			ll := l
 			s.schema.Tables[i].Layout = &ll

@@ -69,9 +69,9 @@ pages: wasm ## Build the static GitHub Pages playground into web/pages-dist/
 .PHONY: check-wasm
 check-wasm: ## Fail if WASM contains DB driver / DSN code
 	@test -f web/public-pages/wasm/erdlens.wasm || (echo "missing WASM; run make wasm" && exit 1)
-	@if strings web/public-pages/wasm/erdlens.wasm | grep -Eiq 'jackc/pgx|pgx/v5|postgres://|pgxpool|database/sql'; then \
-		echo "❌ WASM contains database connection symbols — keep cmd/erdlens-wasm free of introspect/pgx"; \
-		strings web/public-pages/wasm/erdlens.wasm | grep -Ei 'jackc/pgx|pgx/v5|postgres://|pgxpool|database/sql' | head -20; \
+	@if strings web/public-pages/wasm/erdlens.wasm | grep -Eiq 'jackc/pgx|pgx/v5|postgres://|pgxpool|database/sql|go-sql-driver/mysql|modernc.org/sqlite|mysql://|mariadb://|sqlite://|sqlite3://'; then \
+		echo "❌ WASM contains database connection symbols — keep cmd/erdlens-wasm free of introspect/drivers"; \
+		strings web/public-pages/wasm/erdlens.wasm | grep -Ei 'jackc/pgx|pgx/v5|postgres://|pgxpool|database/sql|go-sql-driver/mysql|modernc.org/sqlite|mysql://|mariadb://|sqlite://|sqlite3://' | head -20; \
 		exit 1; \
 	else \
 		echo "✅ WASM has no database connection symbols"; \

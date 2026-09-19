@@ -220,6 +220,7 @@ SELECT
     n.nspname,
     c.relname,
     a.attname,
+    fn.nspname AS ref_schema,
     fc.relname AS ref_table,
     fa.attname AS ref_column,
     con.confdeltype,
@@ -229,6 +230,7 @@ FROM pg_constraint con
 JOIN pg_class c ON c.oid = con.conrelid
 JOIN pg_namespace n ON n.oid = c.relnamespace
 JOIN pg_class fc ON fc.oid = con.confrelid
+JOIN pg_namespace fn ON fn.oid = fc.relnamespace
 JOIN unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
 JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
 JOIN unnest(con.confkey) WITH ORDINALITY AS fk(attnum, ord2) ON fk.ord2 = k.ord
@@ -249,9 +251,9 @@ ORDER BY n.nspname, c.relname, con.conname, k.ord
 	order := map[string][]fkKey{}
 
 	for rows.Next() {
-		var name, nsp, table, col, refTable, refCol, delCode, updCode string
+		var name, nsp, table, col, refSchema, refTable, refCol, delCode, updCode string
 		var ord int
-		if err := rows.Scan(&name, &nsp, &table, &col, &refTable, &refCol, &delCode, &updCode, &ord); err != nil {
+		if err := rows.Scan(&name, &nsp, &table, &col, &refSchema, &refTable, &refCol, &delCode, &updCode, &ord); err != nil {
 			return err
 		}
 		tk := tableKey(nsp, table)
@@ -262,10 +264,11 @@ ORDER BY n.nspname, c.relname, con.conname, k.ord
 		fk, ok := acc[key]
 		if !ok {
 			fk = &schema.ForeignKey{
-				Name:     name,
-				RefTable: refTable,
-				OnDelete: fkAction(delCode),
-				OnUpdate: fkAction(updCode),
+				Name:      name,
+				RefSchema: refSchema,
+				RefTable:  refTable,
+				OnDelete:  fkAction(delCode),
+				OnUpdate:  fkAction(updCode),
 			}
 			acc[key] = fk
 			order[tk] = append(order[tk], key)

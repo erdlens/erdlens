@@ -25,6 +25,13 @@ Or grab a binary from the [Releases page](https://github.com/erdlens/erdlens/rel
 # Explore a live database in one command (temp file in /tmp)
 erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb'
 
+# MySQL / MariaDB and SQLite work the same way
+erdlens view --dsn 'mysql://user:pass@localhost:3306/mydb'
+erdlens view --dsn 'sqlite:///path/to/db.sqlite'
+
+# Include multiple Postgres schemas (not just public)
+erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb' --schema public --schema auth
+
 # Or generate a versionable file, commit it, and view later
 erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb' -o schema.erd
 git add schema.erd && git commit -m "snapshot schema"
@@ -43,7 +50,7 @@ Parsing runs locally via a **parse-only WASM** build (`erdfile` + `schema` only 
 
 ```sh
 make pages          # build WASM + static site → web/pages-dist/
-make check-wasm     # assert the .wasm has no pgx / postgres:// symbols
+make check-wasm     # assert the .wasm has no DB driver / DSN symbols
 cd web && npm run preview:pages
 ```
 
@@ -63,9 +70,9 @@ All commands take `--help` for full flag documentation.
 
 | Flag | Purpose |
 |---|---|
-| `--dsn` | Database DSN (`postgres://…`) — **required** |
+| `--dsn` | Database DSN (`postgres://…`, `mysql://…`, `sqlite://…`) — **required** |
 | `-o, --output` | Output file path (default stdout) |
-| `--schema` | Postgres schemas to include (default `public`) |
+| `--schema` | Schemas/databases to include (Postgres/MySQL; ignored for SQLite). Empty → driver default (`public` / current DB) |
 | `--include` | Glob patterns of table names to include (repeatable) |
 | `--exclude` | Glob patterns of table names to exclude (repeatable) |
 | `--timeout` | Overall connection + introspection timeout (default `30s`) |
@@ -76,7 +83,7 @@ All commands take `--help` for full flag documentation.
 |---|---|
 | `--dsn` | Introspect a live database instead of reading a file |
 | `-o, --output` | When using `--dsn`, save the `.erd` here (default: temp file in `/tmp`) |
-| `--schema` | Postgres schemas to include when using `--dsn` (default `public`) |
+| `--schema` | Schemas/databases to include when using `--dsn` (Postgres/MySQL; ignored for SQLite) |
 | `--include` | Glob patterns of table names to include when using `--dsn` |
 | `--exclude` | Glob patterns of table names to exclude when using `--dsn` |
 | `--timeout` | Connection + introspection timeout when using `--dsn` (default `30s`) |
@@ -152,12 +159,12 @@ Both extensions ship snippets for every block type (`table`, `column`, `foreign_
 
 ## Supported databases
 
-| Dialect | Status |
-|---|---|
-| PostgreSQL | ✅ v1 |
-| MySQL / MariaDB | 🔜 v1 |
-| SQLite | 🔜 v2 |
-| MSSQL | 🔜 v2 |
+| Dialect | Status | Example DSN |
+|---|---|---|
+| PostgreSQL | ✅ | `postgres://user:pass@localhost:5432/mydb` |
+| MySQL / MariaDB | ✅ | `mysql://user:pass@localhost:3306/mydb` |
+| SQLite | ✅ | `sqlite:///path/to/db.sqlite` |
+| MSSQL | 🔜 | — |
 
 ## Development
 

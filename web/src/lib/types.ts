@@ -34,6 +34,7 @@ export interface Column {
 export interface ForeignKey {
   name?: string
   columns: string[]
+  ref_schema?: string
   ref_table: string
   ref_columns: string[]
   on_delete?: string

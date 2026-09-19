@@ -49,10 +49,29 @@ type Column struct {
 type ForeignKey struct {
 	Name       string   `json:"name,omitempty"`
 	Columns    []string `json:"columns"`
+	RefSchema  string   `json:"ref_schema,omitempty"` // e.g. "public" / "auth" in Postgres
 	RefTable   string   `json:"ref_table"`
 	RefColumns []string `json:"ref_columns"`
 	OnDelete   string   `json:"on_delete,omitempty"`
 	OnUpdate   string   `json:"on_update,omitempty"`
+}
+
+// TableID returns a stable identity for a table. Non-public Postgres schemas
+// are qualified as "schema.name"; empty and "public" use the bare table name
+// so single-schema diagrams stay compatible with existing hashes/layouts.
+func TableID(t Table) string {
+	if t.Schema != "" && t.Schema != "public" {
+		return t.Schema + "." + t.Name
+	}
+	return t.Name
+}
+
+// RefTableID returns the identity of the table referenced by fk.
+func RefTableID(fk ForeignKey) string {
+	if fk.RefSchema != "" && fk.RefSchema != "public" {
+		return fk.RefSchema + "." + fk.RefTable
+	}
+	return fk.RefTable
 }
 
 // Index describes a non-PK index. Kept minimal for v1.

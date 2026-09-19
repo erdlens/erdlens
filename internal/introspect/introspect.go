@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"path"
 	"strings"
 
@@ -57,14 +56,28 @@ var ErrUnsupportedDialect = errors.New("unsupported dialect")
 
 // Open selects a driver based on the DSN scheme and returns a connected Introspector.
 func Open(ctx context.Context, dsn string) (Introspector, error) {
-	u, err := url.Parse(dsn)
+	scheme, err := dsnScheme(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("parse dsn: %w", err)
+		return nil, err
 	}
-	switch strings.ToLower(u.Scheme) {
+	switch scheme {
 	case "postgres", "postgresql":
 		return NewPostgres(ctx, dsn)
+	case "mysql", "mariadb":
+		return NewMySQL(ctx, dsn)
+	case "sqlite", "sqlite3":
+		return NewSQLite(ctx, dsn)
 	default:
-		return nil, fmt.Errorf("%w: %q (supported: postgres)", ErrUnsupportedDialect, u.Scheme)
+		return nil, fmt.Errorf("%w: %q (supported: postgres, mysql, mariadb, sqlite)", ErrUnsupportedDialect, scheme)
 	}
+}
+
+// dsnScheme extracts the URL scheme without requiring a fully valid net/url parse
+// (MySQL DSNs may contain tcp(host:port) which url.Parse rejects).
+func dsnScheme(dsn string) (string, error) {
+	i := strings.Index(dsn, "://")
+	if i <= 0 {
+		return "", fmt.Errorf("parse dsn: missing scheme in %q", dsn)
+	}
+	return strings.ToLower(dsn[:i]), nil
 }

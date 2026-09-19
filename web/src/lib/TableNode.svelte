@@ -23,9 +23,14 @@
   class:has-match={matched.size > 0}
   title={data.table.comment || ''}
 >
-  <div class="header">{data.table.name}</div>
+  <div class="header">
+    {#if data.table.schema && data.table.schema !== 'public'}
+      <span class="schema">{data.table.schema}.</span>
+    {/if}
+    {data.table.name}
+  </div>
   <div class="body">
-    {#each data.table.columns as col}
+    {#each data.table.columns as col (col.name)}
       <div
         class="row"
         class:matched={matched.has(col.name)}
@@ -87,9 +92,16 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
   }
+  .header .schema {
+    color: var(--muted);
+    font-weight: 400;
+  }
   .highlighted .header {
     background: var(--accent);
     color: white;
+  }
+  .highlighted .header .schema {
+    color: rgba(255, 255, 255, 0.7);
   }
   .body {
     display: flex;

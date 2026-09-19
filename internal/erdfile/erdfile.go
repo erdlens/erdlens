@@ -57,11 +57,15 @@ func Write(w io.Writer, s *schema.Schema) error {
 		return tables[i].Name < tables[j].Name
 	})
 
+	// When more than one schema is present, emit schema = "public" (and
+	// ref_schema = "public") so round-trips stay unambiguous.
+	multiSchema := hasMultipleSchemas(tables)
+
 	for _, t := range tables {
 		if blockCount > 0 {
 			f.newline()
 		}
-		f.writeTable(&t)
+		f.writeTable(&t, multiSchema)
 		blockCount++
 	}
 
@@ -117,10 +121,31 @@ func (f *formatter) writeView(v *schema.View) {
 	f.printf("}\n")
 }
 
-func (f *formatter) writeTable(t *schema.Table) {
+func hasMultipleSchemas(tables []schema.Table) bool {
+	seen := map[string]struct{}{}
+	for _, t := range tables {
+		s := t.Schema
+		if s == "" {
+			s = "public"
+		}
+		seen[s] = struct{}{}
+		if len(seen) > 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *formatter) writeTable(t *schema.Table, multiSchema bool) {
 	f.printf("table %s {\n", q(t.Name))
+	schemaName := t.Schema
+	if schemaName == "" {
+		schemaName = "public"
+	}
 	if t.Schema != "" && t.Schema != "public" {
 		f.printf("  schema  = %s\n", q(t.Schema))
+	} else if multiSchema && (t.Schema == "" || t.Schema == "public") {
+		f.printf("  schema  = %s\n", q(schemaName))
 	}
 	if t.Comment != "" {
 		f.printf("  comment = %s\n", q(t.Comment))
@@ -142,7 +167,7 @@ func (f *formatter) writeTable(t *schema.Table) {
 	sort.SliceStable(fks, func(i, j int) bool { return fks[i].Name < fks[j].Name })
 	for _, fk := range fks {
 		f.newline()
-		f.writeForeignKey(&fk)
+		f.writeForeignKey(&fk, multiSchema)
 	}
 
 	idxs := append([]schema.Index(nil), t.Indexes...)
@@ -182,13 +207,22 @@ func (f *formatter) writeColumn(c *schema.Column) {
 	f.printf("  }\n")
 }
 
-func (f *formatter) writeForeignKey(fk *schema.ForeignKey) {
+func (f *formatter) writeForeignKey(fk *schema.ForeignKey, multiSchema bool) {
 	name := fk.Name
 	if name == "" {
 		name = "fk_" + strings.Join(fk.Columns, "_")
 	}
 	f.printf("  foreign_key %s {\n", q(name))
 	f.printf("    columns     = %s\n", qList(fk.Columns))
+	refSchema := fk.RefSchema
+	if refSchema == "" {
+		refSchema = "public"
+	}
+	if fk.RefSchema != "" && fk.RefSchema != "public" {
+		f.printf("    ref_schema  = %s\n", q(fk.RefSchema))
+	} else if multiSchema && (fk.RefSchema == "" || fk.RefSchema == "public") {
+		f.printf("    ref_schema  = %s\n", q(refSchema))
+	}
 	f.printf("    ref_table   = %s\n", q(fk.RefTable))
 	f.printf("    ref_columns = %s\n", qList(fk.RefColumns))
 	if fk.OnDelete != "" {

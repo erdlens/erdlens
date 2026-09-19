@@ -32,7 +32,10 @@ human-readable, git-versionable .erd file (HCL format).
 Running 'generate' twice against the same database must produce byte-identical
 output — this is the promise that keeps diffs clean.`,
 		Example: `  erdlens generate --dsn 'postgres://user:pass@host/db' -o schema.erd
-  erdlens generate --dsn "$DATABASE_URL" --schema public --exclude 'audit_*' -o schema.erd`,
+  erdlens generate --dsn 'mysql://user:pass@tcp(localhost:3306)/mydb' -o schema.erd
+  erdlens generate --dsn 'sqlite:///path/to/db.sqlite' -o schema.erd
+  erdlens generate --dsn "$DATABASE_URL" --schema public --schema auth -o schema.erd
+  erdlens generate --dsn "$DATABASE_URL" --exclude 'audit_*' -o schema.erd`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if dsn == "" {
 				return errors.New("--dsn is required")
@@ -60,9 +63,9 @@ output — this is the promise that keeps diffs clean.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&dsn, "dsn", "", "Database DSN (e.g. postgres://user:pass@host/db)")
+	cmd.Flags().StringVar(&dsn, "dsn", "", "Database DSN (postgres://, mysql://, sqlite://, …)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output .erd file path (default: stdout)")
-	cmd.Flags().StringSliceVar(&schemas, "schema", []string{"public"}, "Schemas to include (Postgres)")
+	cmd.Flags().StringSliceVar(&schemas, "schema", nil, "Schemas/databases to include (Postgres/MySQL; ignored for SQLite). Empty → driver default")
 	cmd.Flags().StringSliceVar(&include, "include", nil, "Glob patterns of table names to include")
 	cmd.Flags().StringSliceVar(&exclude, "exclude", nil, "Glob patterns of table names to exclude")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Overall connection + introspection timeout")

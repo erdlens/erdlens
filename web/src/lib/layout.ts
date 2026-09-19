@@ -1,5 +1,6 @@
 import dagre from '@dagrejs/dagre'
 import type { Table, Layout } from './types'
+import { refTableId, tableId } from './tableId'
 
 export const NODE_WIDTH = 260
 const HEADER_H = 34
@@ -26,14 +27,16 @@ export function autoLayout(
   })
   g.setDefaultEdgeLabel(() => ({}))
 
-  const known = new Set(tables.map((t) => t.name))
+  const known = new Set(tables.map(tableId))
   for (const t of tables) {
-    g.setNode(t.name, { width: NODE_WIDTH, height: nodeHeight(t) })
+    g.setNode(tableId(t), { width: NODE_WIDTH, height: nodeHeight(t) })
   }
   for (const t of tables) {
+    const src = tableId(t)
     for (const fk of t.foreign_keys ?? []) {
-      if (known.has(fk.ref_table)) {
-        g.setEdge(t.name, fk.ref_table)
+      const target = refTableId(fk)
+      if (known.has(target)) {
+        g.setEdge(src, target)
       }
     }
   }
@@ -41,8 +44,9 @@ export function autoLayout(
 
   const result = new Map<string, Layout>()
   for (const t of tables) {
-    const n = g.node(t.name)
-    result.set(t.name, { x: n.x - n.width / 2, y: n.y - n.height / 2 })
+    const id = tableId(t)
+    const n = g.node(id)
+    result.set(id, { x: n.x - n.width / 2, y: n.y - n.height / 2 })
   }
   return result
 }

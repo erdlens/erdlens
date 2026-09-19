@@ -212,6 +212,68 @@ func TestWriteViews(t *testing.T) {
 	}
 }
 
+func TestMultiSchemaRoundTrip(t *testing.T) {
+	original := &schema.Schema{
+		Dialect: "postgres",
+		Tables: []schema.Table{
+			{
+				Name:   "users",
+				Schema: "auth",
+				Columns: []schema.Column{
+					{Name: "id", Type: "uuid", Nullable: false},
+				},
+				PrimaryKey: []string{"id"},
+			},
+			{
+				Name:   "orders",
+				Schema: "public",
+				Columns: []schema.Column{
+					{Name: "id", Type: "uuid", Nullable: false},
+					{Name: "user_id", Type: "uuid", Nullable: false},
+				},
+				PrimaryKey: []string{"id"},
+				ForeignKeys: []schema.ForeignKey{
+					{
+						Name:       "fk_orders_user",
+						Columns:    []string{"user_id"},
+						RefSchema:  "auth",
+						RefTable:   "users",
+						RefColumns: []string{"id"},
+					},
+				},
+			},
+		},
+	}
+	var buf1 bytes.Buffer
+	if err := Write(&buf1, original); err != nil {
+		t.Fatal(err)
+	}
+	out := buf1.String()
+	if !strings.Contains(out, `schema  = "auth"`) {
+		t.Fatalf("expected auth schema:\n%s", out)
+	}
+	if !strings.Contains(out, `schema  = "public"`) {
+		t.Fatalf("expected public schema when multi-schema:\n%s", out)
+	}
+	if !strings.Contains(out, `ref_schema  = "auth"`) {
+		t.Fatalf("expected ref_schema:\n%s", out)
+	}
+	parsed, err := Parse(strings.NewReader(out))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var buf2 bytes.Buffer
+	if err := Write(&buf2, parsed); err != nil {
+		t.Fatal(err)
+	}
+	if buf1.String() != buf2.String() {
+		t.Fatalf("multi-schema round-trip differs:\n--- first ---\n%s\n--- second ---\n%s", buf1.String(), buf2.String())
+	}
+	if len(parsed.Tables) != 2 {
+		t.Fatalf("expected 2 tables, got %d", len(parsed.Tables))
+	}
+}
+
 func TestViewRoundTrip(t *testing.T) {
 	original := &schema.Schema{
 		Dialect: "postgres",
