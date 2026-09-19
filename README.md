@@ -1,5 +1,9 @@
 # erdlens
 
+<p align="center">
+  <img src="docs/logo.svg" alt="erdlens" width="96" height="96" />
+</p>
+
 > **A lens on your ERD.** Interactive, git-friendly ER diagrams for relational databases.
 > Single binary · works offline · one file format · multi-DB.
 

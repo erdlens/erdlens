@@ -23,6 +23,7 @@
     distinctSchemas,
   } from './tableId'
   import TableNode from './TableNode.svelte'
+  import logoUrl from '../assets/logo.svg'
 
   /** When set, skip GET /api/schema and use this schema (static / Pages mode). */
   export let initialSchema: Schema | null = null
@@ -580,7 +581,7 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="brand">
-      <span class="dot"></span>
+      <img class="logo" src={logoUrl} alt="" width="22" height="22" />
       erdlens
       {#if onClose}
         <button class="tool close" title="Close file" on:click={onClose}>✕</button>
@@ -780,11 +781,11 @@
   .brand .close {
     margin-left: auto;
   }
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
+  .logo {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    display: block;
   }
   .toolbar {
     display: flex;

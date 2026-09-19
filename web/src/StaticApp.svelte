@@ -4,6 +4,7 @@
   import type { Schema } from './lib/types'
   import { initWasm, parseErd, writeErd } from './lib/wasm'
   import sampleErd from './lib/sample.erd?raw'
+  import logoUrl from './assets/logo.svg'
 
   let schema: Schema | null = null
   let filename = 'schema.erd'
@@ -89,7 +90,7 @@
   <div class="landing">
     <div class="hero">
       <div class="brand">
-        <span class="dot"></span>
+        <img class="logo" src={logoUrl} alt="" width="28" height="28" />
         erdlens
       </div>
       <h1>Visualize a <code>.erd</code> file in your browser</h1>
@@ -169,11 +170,11 @@
     align-items: center;
     gap: 8px;
   }
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
+  .logo {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: block;
   }
   h1 {
     font-size: 1.6rem;
