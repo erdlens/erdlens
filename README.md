@@ -48,7 +48,7 @@ Your browser opens with an interactive canvas: pan, zoom, click a table to highl
 
 Prefer not to install anything? Open the static playground, upload a `.erd` file, and visualize it in the browser:
 
-**https://erdlens.github.io/erdlens/**
+**https://erdlens.github.io**
 
 Parsing runs locally via a **parse-only WASM** build (`erdfile` + `schema` only — no database drivers, no DSN handling). Layout changes stay in memory until you click **⤓ .erd** to download.
 

@@ -1,12 +1,11 @@
 name: pages
 
-# Publish the browser playground after a successful release.
+# After a release (or on manual run), ask erdlens.github.io to rebuild and
+# publish https://erdlens.github.io
 #
-# Triggered by the `release` workflow (tag push v*), not by the tag itself.
-# That way the job runs in the default-branch context and satisfies the
-# github-pages environment protection rules (which often block tags).
-#
-# Also runnable manually via workflow_dispatch (deploys the selected branch).
+# Requires repo secret PAGES_REPO_TOKEN: a PAT (or fine-grained token) with
+# permission to dispatch workflows on erdlens/erdlens.github.io
+# (contents: read + actions: write, or classic `repo` scope).
 
 on:
   workflow_run:
@@ -16,61 +15,28 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-  actions: read # needed to inspect the triggering workflow_run
+  actions: read
 
 concurrency:
-  group: pages
+  group: pages-trigger
   cancel-in-progress: true
 
 jobs:
-  build:
-    # Skip failed/cancelled releases; always run on manual dispatch.
+  trigger:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out release commit
-        uses: actions/checkout@v6
-        with:
-          # For workflow_run: build the exact commit that was released.
-          # For workflow_dispatch: build the selected branch tip.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.26'
-          cache: true
-
-      - name: Set up Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-
-      - name: Install frontend deps
-        working-directory: web
-        run: npm ci
-
-      - name: Build WASM + Pages site
-        run: make pages
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: web/pages-dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Dispatch deploy to erdlens.github.io
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Set secret PAGES_REPO_TOKEN (PAT with access to erdlens/erdlens.github.io) so releases can update https://erdlens.github.io"
+            exit 1
+          fi
+          REF="${{ github.event.workflow_run.head_sha || github.sha }}"
+          gh api repos/erdlens/erdlens.github.io/dispatches --input - <<EOF
+          {"event_type":"deploy-pages","client_payload":{"ref":"$REF"}}
+          EOF
