@@ -1,4 +1,4 @@
-# erdlens
+# ERDLens
 
 <p align="center">
   <img src="docs/logo.svg" alt="erdlens" width="96" height="96" />
