@@ -78,6 +78,14 @@ func (m *MySQL) Introspect(ctx context.Context, opts Options) (*schema.Schema, e
 		return nil, fmt.Errorf("read indexes: %w", err)
 	}
 
+	sqlViews, err := m.readSQLViews(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("read sql views: %w", err)
+	}
+	if err := m.readSQLViewColumns(ctx, opts, sqlViews); err != nil {
+		return nil, fmt.Errorf("read sql view columns: %w", err)
+	}
+
 	out := &schema.Schema{Dialect: "mysql"}
 	keys := make([]string, 0, len(tables))
 	for k := range tables {
@@ -86,6 +94,14 @@ func (m *MySQL) Introspect(ctx context.Context, opts Options) (*schema.Schema, e
 	sort.Strings(keys)
 	for _, k := range keys {
 		out.Tables = append(out.Tables, *tables[k])
+	}
+	vkeys := make([]string, 0, len(sqlViews))
+	for k := range sqlViews {
+		vkeys = append(vkeys, k)
+	}
+	sort.Strings(vkeys)
+	for _, k := range vkeys {
+		out.SQLViews = append(out.SQLViews, *sqlViews[k])
 	}
 	return out, nil
 }
@@ -128,6 +144,84 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
 		}
 	}
 	return tables, rows.Err()
+}
+
+func (m *MySQL) readSQLViews(ctx context.Context, opts Options) (map[string]*schema.SQLView, error) {
+	q, args := schemaInQuery(`
+SELECT TABLE_SCHEMA, TABLE_NAME, IFNULL(TABLE_COMMENT, '')
+FROM information_schema.TABLES
+WHERE TABLE_TYPE = 'VIEW'
+  AND TABLE_SCHEMA IN (%s)
+ORDER BY TABLE_SCHEMA, TABLE_NAME
+`, opts.Schemas)
+	rows, err := m.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	views := make(map[string]*schema.SQLView)
+	for rows.Next() {
+		var nsp, name, comment string
+		if err := rows.Scan(&nsp, &name, &comment); err != nil {
+			return nil, err
+		}
+		if !opts.Match(name) {
+			continue
+		}
+		views[tableKey(nsp, name)] = &schema.SQLView{
+			Name:    name,
+			Schema:  nsp,
+			Comment: comment,
+		}
+	}
+	return views, rows.Err()
+}
+
+func (m *MySQL) readSQLViewColumns(ctx context.Context, opts Options, views map[string]*schema.SQLView) error {
+	q, args := schemaInQuery(`
+SELECT
+    TABLE_SCHEMA,
+    TABLE_NAME,
+    COLUMN_NAME,
+    COLUMN_TYPE,
+    IS_NULLABLE,
+    COLUMN_DEFAULT,
+    IFNULL(COLUMN_COMMENT, ''),
+    ORDINAL_POSITION
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA IN (%s)
+ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
+`, opts.Schemas)
+	rows, err := m.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var nsp, viewName, name, typ, nullable, comment string
+		var def sql.NullString
+		var ord int
+		if err := rows.Scan(&nsp, &viewName, &name, &typ, &nullable, &def, &comment, &ord); err != nil {
+			return err
+		}
+		v, ok := views[tableKey(nsp, viewName)]
+		if !ok {
+			continue
+		}
+		col := schema.Column{
+			Name:     name,
+			Type:     typ,
+			Nullable: strings.EqualFold(nullable, "YES"),
+			Comment:  comment,
+		}
+		if def.Valid {
+			col.Default = def.String
+		}
+		v.Columns = append(v.Columns, col)
+	}
+	return rows.Err()
 }
 
 func (m *MySQL) readColumns(ctx context.Context, opts Options, tables map[string]*schema.Table) error {

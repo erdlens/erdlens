@@ -65,6 +65,14 @@ func (s *SQLite) Introspect(ctx context.Context, opts Options) (*schema.Schema, 
 		return nil, fmt.Errorf("read indexes: %w", err)
 	}
 
+	sqlViews, err := s.readSQLViews(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("read sql views: %w", err)
+	}
+	if err := s.readSQLViewColumns(ctx, sqlViews); err != nil {
+		return nil, fmt.Errorf("read sql view columns: %w", err)
+	}
+
 	out := &schema.Schema{Dialect: "sqlite"}
 	keys := make([]string, 0, len(tables))
 	for k := range tables {
@@ -73,6 +81,14 @@ func (s *SQLite) Introspect(ctx context.Context, opts Options) (*schema.Schema, 
 	sort.Strings(keys)
 	for _, k := range keys {
 		out.Tables = append(out.Tables, *tables[k])
+	}
+	vkeys := make([]string, 0, len(sqlViews))
+	for k := range sqlViews {
+		vkeys = append(vkeys, k)
+	}
+	sort.Strings(vkeys)
+	for _, k := range vkeys {
+		out.SQLViews = append(out.SQLViews, *sqlViews[k])
 	}
 	return out, nil
 }
@@ -101,6 +117,66 @@ ORDER BY name
 		tables[name] = &schema.Table{Name: name}
 	}
 	return tables, rows.Err()
+}
+
+func (s *SQLite) readSQLViews(ctx context.Context, opts Options) (map[string]*schema.SQLView, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT name FROM sqlite_master
+WHERE type = 'view'
+  AND name NOT LIKE 'sqlite_%'
+ORDER BY name
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	views := make(map[string]*schema.SQLView)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		if !opts.Match(name) {
+			continue
+		}
+		views[name] = &schema.SQLView{Name: name}
+	}
+	return views, rows.Err()
+}
+
+func (s *SQLite) readSQLViewColumns(ctx context.Context, views map[string]*schema.SQLView) error {
+	for _, v := range views {
+		rows, err := s.db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", quoteIdent(v.Name)))
+		if err != nil {
+			return fmt.Errorf("table_info %s: %w", v.Name, err)
+		}
+		for rows.Next() {
+			var cid int
+			var name, typ string
+			var notNull, pk int
+			var dflt sql.NullString
+			if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			col := schema.Column{
+				Name:     name,
+				Type:     typ,
+				Nullable: notNull == 0,
+			}
+			if dflt.Valid {
+				col.Default = dflt.String
+			}
+			v.Columns = append(v.Columns, col)
+		}
+		err = rows.Err()
+		_ = rows.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *SQLite) readColumnsAndPKs(ctx context.Context, tables map[string]*schema.Table) error {

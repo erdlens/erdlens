@@ -14,10 +14,11 @@ The writer is deterministic: parsing an `.erd` file and writing it back produces
 An `.erd` file contains, in order:
 
 1. An optional `meta { … }` block.
-2. Zero or more `view "name" { … }` blocks.
-3. One or more `table "name" { … }` blocks.
+2. Zero or more `view "name" { … }` blocks (UI filter presets).
+3. One or more `table "name" { … }` blocks (or zero if the file only has SQL views).
+4. Zero or more `sql_view "name" { … }` blocks (database VIEW / materialized view relations).
 
-Blocks are separated by a single blank line. Tables are alphabetically sorted by (`schema`, `name`).
+Blocks are separated by a single blank line. Tables are alphabetically sorted by (`schema`, `name`). SQL views follow tables, also sorted by (`schema`, `name`).
 
 ## `meta` block
 
@@ -36,7 +37,11 @@ For live introspection: MySQL/MariaDB map `schema` to the **database name**; SQL
 
 ## `view` block
 
-Defines a named subset of tables. The viewer surfaces these in a dropdown; picking one hides everything outside the view. Great for large schemas ("auth stuff", "billing stuff", "the reporting subgraph").
+Defines a named **filter preset** (subset of tables and SQL views). The viewer
+surfaces these in a dropdown; picking one hides everything outside the preset.
+Great for large schemas ("auth stuff", "billing stuff", "the reporting subgraph").
+
+This is **not** a database VIEW — see [`sql_view`](#sql_view-block) for those.
 
 ```hcl
 view "auth" {
@@ -51,10 +56,10 @@ view "billing" {
 
 | Attribute | Type | Purpose |
 |---|---|---|
-| `include` | `list(string)`, optional | Glob patterns; empty = all tables |
+| `include` | `list(string)`, optional | Glob patterns; empty = all tables and SQL views |
 | `exclude` | `list(string)`, optional | Glob patterns; wins over include |
 
-Glob syntax: `*` (any run of chars), `?` (single char). Patterns match against the **table name** (not schema-qualified).
+Glob syntax: `*` (any run of chars), `?` (single char). Patterns match against the **relation name** (not schema-qualified) — both `table` and `sql_view` names.
 
 ## `table` block
 
@@ -182,12 +187,51 @@ layout {
 
 Coordinates are top-left corner of the node, in Svelte Flow canvas units. Regenerating from a live DB **never clobbers** layout blocks — they're preserved unless you pass `--force-layout` (planned).
 
+## `sql_view` block
+
+A database VIEW or materialized view. Same column shape as a table, but no
+primary keys, foreign keys, or indexes (those are not invented for views).
+
+```hcl
+sql_view "active_users" {
+  schema  = "public"                    # optional; same rules as table
+  comment = "Users with a recent login" # optional
+  # materialized = true                 # Postgres / indexed MSSQL views
+
+  column "id" {
+    type = "uuid"
+    null = false
+  }
+
+  column "email" {
+    type = "text"
+    null = false
+  }
+
+  layout {
+    x = 120
+    y = 400
+  }
+}
+```
+
+| Attribute | Type | Purpose |
+|---|---|---|
+| `schema` | `string`, optional | Same default/multi-schema rules as `table` |
+| `comment` | `string`, optional | Object comment |
+| `materialized` | `bool`, optional | `true` for Postgres materialized views (and similar) |
+| `column` | blocks | Same as table columns |
+| `layout` | block, optional | Same as table layout |
+
+Stored procedures, functions, and triggers are **not** part of the `.erd` format.
+
 ## Ordering guarantees
 
 For byte-identical output:
 
-- Top-level: `meta`, then `view`s alphabetical by name, then `table`s alphabetical by (`schema`, `name`).
+- Top-level: `meta`, then `view`s (filter presets) alphabetical by name, then `table`s alphabetical by (`schema`, `name`), then `sql_view`s alphabetical by (`schema`, `name`).
 - Inside a table: `column`s in physical order (as introspected), then `primary_key`, then `foreign_key`s alphabetical by name, then `index`es alphabetical by name, then `layout`.
+- Inside a `sql_view`: `column`s in physical order, then `layout`.
 - Inside `foreign_key`: `columns` and `ref_columns` preserve the constraint's declared column order.
 
 ## Comments and hand-editing
@@ -206,7 +250,7 @@ table "orders" {
 ## Grammar summary
 
 ```
-file        ::= meta? view* table*
+file        ::= meta? view* table* sql_view*
 meta        ::= 'meta' '{' meta_attr* '}'
 meta_attr   ::= 'name' '=' STRING
               | 'dialect' '=' STRING
@@ -222,6 +266,13 @@ table_body  ::= ('schema' '=' STRING)?
                 primary_key?
                 foreign_key*
                 index*
+                layout?
+
+sql_view    ::= 'sql_view' STRING '{' sql_view_body '}'
+sql_view_body ::= ('schema' '=' STRING)?
+                ('comment' '=' STRING)?
+                ('materialized' '=' 'true')?
+                column*
                 layout?
 
 column      ::= 'column' STRING '{' column_attr* '}'

@@ -150,6 +150,7 @@ CREATE TABLE orders (
 );
 CREATE INDEX idx_orders_user ON orders(user_id);
 CREATE UNIQUE INDEX orders_ext_unique ON orders(id, user_id);
+CREATE VIEW active_users AS SELECT id, email FROM users;
 `)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -164,6 +165,31 @@ CREATE UNIQUE INDEX orders_ext_unique ON orders(id, user_id);
 	}
 	if len(s.Tables) != 2 {
 		t.Fatalf("tables = %d, want 2", len(s.Tables))
+	}
+	if len(s.SQLViews) != 1 {
+		t.Fatalf("sql views = %d, want 1", len(s.SQLViews))
+	}
+	v := s.SQLViews[0]
+	if v.Name != "active_users" {
+		t.Fatalf("view name = %q", v.Name)
+	}
+	if v.Schema != "" {
+		t.Fatalf("sqlite view Schema = %q, want empty", v.Schema)
+	}
+	if v.Materialized {
+		t.Fatal("sqlite view should not be materialized")
+	}
+	if len(v.Columns) != 2 {
+		t.Fatalf("view columns = %#v", v.Columns)
+	}
+
+	// include/exclude apply to views as well as tables
+	filtered, err := i.Introspect(ctx, Options{Exclude: []string{"active_*"}})
+	if err != nil {
+		t.Fatalf("introspect exclude: %v", err)
+	}
+	if len(filtered.SQLViews) != 0 {
+		t.Fatalf("expected active_users excluded, got %#v", filtered.SQLViews)
 	}
 
 	byName := map[string]int{}

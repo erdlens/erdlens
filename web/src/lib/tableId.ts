@@ -1,4 +1,4 @@
-import type { ForeignKey, Table } from './types'
+import type { ForeignKey, Relation, Schema, SQLView, Table } from './types'
 
 /** Empty, "public", and "dbo" share the bare-name identity for single-schema diagrams. */
 export function isDefaultSchema(schema?: string): boolean {
@@ -27,9 +27,27 @@ export function schemaName(t: Pick<Table, 'schema'>): string {
   return t.schema || 'public'
 }
 
-/** Distinct schema names present in tables, sorted. */
-export function distinctSchemas(tables: Table[]): string[] {
+/** Distinct schema names present in tables and SQL views, sorted. */
+export function distinctSchemas(relations: Pick<Table, 'schema'>[]): string[] {
   const set = new Set<string>()
-  for (const t of tables) set.add(schemaName(t))
+  for (const t of relations) set.add(schemaName(t))
   return [...set].sort()
+}
+
+/** All canvas relations (tables then SQL views) for a schema. */
+export function allRelations(schema: Schema): Relation[] {
+  const tables: Relation[] = schema.tables.map((t) => ({
+    ...t,
+    kind: 'table' as const,
+  }))
+  const views: Relation[] = (schema.sql_views ?? []).map((v: SQLView) => ({
+    name: v.name,
+    schema: v.schema,
+    comment: v.comment,
+    columns: v.columns,
+    layout: v.layout,
+    kind: 'sql_view' as const,
+    materialized: v.materialized,
+  }))
+  return [...tables, ...views]
 }

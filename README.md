@@ -78,8 +78,8 @@ All commands take `--help` for full flag documentation.
 | `--dsn` | Database DSN (`postgres://…`, `mysql://…`, `sqlite://…`, `sqlserver://…`) — **required** |
 | `-o, --output` | Output file path (default stdout) |
 | `--schema` | Schemas/databases to include (Postgres/MySQL/MSSQL; ignored for SQLite). Empty → driver default (`public` / current DB / `dbo`) |
-| `--include` | Glob patterns of table names to include (repeatable) |
-| `--exclude` | Glob patterns of table names to exclude (repeatable) |
+| `--include` | Glob patterns of table/view names to include (repeatable) |
+| `--exclude` | Glob patterns of table/view names to exclude (repeatable) |
 | `--timeout` | Overall connection + introspection timeout (default `30s`) |
 
 ### `view` flags
@@ -89,8 +89,8 @@ All commands take `--help` for full flag documentation.
 | `--dsn` | Introspect a live database instead of reading a file |
 | `-o, --output` | When using `--dsn`, save the `.erd` here (default: temp file in `/tmp`) |
 | `--schema` | Schemas/databases to include when using `--dsn` (Postgres/MySQL/MSSQL; ignored for SQLite) |
-| `--include` | Glob patterns of table names to include when using `--dsn` |
-| `--exclude` | Glob patterns of table names to exclude when using `--dsn` |
+| `--include` | Glob patterns of table/view names to include when using `--dsn` |
+| `--exclude` | Glob patterns of table/view names to exclude when using `--dsn` |
 | `--timeout` | Connection + introspection timeout when using `--dsn` (default `30s`) |
 | `--addr` | Bind address (default `127.0.0.1:0`, OS-assigned port) |
 | `--no-browser` | Don't auto-open the browser |
@@ -105,7 +105,7 @@ All commands take `--help` for full flag documentation.
 | `I` | Toggle isolate mode (show only selected + neighbors, compact) |
 | `F` | Fit view to canvas |
 
-Search matches both **table names** and **column names**. Clicking a table pans the canvas to it and highlights the exact PK/FK columns involved in every relationship it participates in.
+Search matches **table names**, **SQL view names**, and **column names**. Clicking a relation pans the canvas to it and highlights the exact PK/FK columns involved in every relationship it participates in.
 
 ## `.erd` file format
 
@@ -142,14 +142,20 @@ table "sessions" {
     on_delete   = "cascade"
   }
 }
+
+sql_view "active_users" {
+  column "id"    { type = "uuid" null = false }
+  column "email" { type = "text" null = false }
+}
 ```
 
 Design guarantees:
 
 - **Deterministic output** — `generate` twice against the same DB produces byte-identical files. Diffs stay clean.
 - **Round-trip stable** — `parse → write` also byte-identical.
-- **Layout persists** in `layout { x = … y = … }` blocks on each table, appended by the viewer when you drag things around.
-- **Saved views** (`view "name" { include = […] }`) let you define named subgraphs for large schemas.
+- **Layout persists** in `layout { x = … y = … }` blocks on each table/SQL view, appended by the viewer when you drag things around.
+- **Saved filter presets** (`view "name" { include = […] }`) let you define named subgraphs for large schemas.
+- **SQL views** (`sql_view "name" { … }`) are introspected alongside tables (including Postgres materialized views).
 
 ## Editor support
 
@@ -160,7 +166,7 @@ Language extensions for `.erd` files — syntax highlighting, snippets, bracket 
 | **VS Code** | [erdlens-vscode](https://github.com/erdlens/erdlens-vscode) | `ext install erdlens.erdlens` |
 | **Zed** | [erdlens-zed](https://github.com/erdlens/erdlens-zed) | Command palette → `zed: extensions` → search "erdlens" |
 
-Both extensions ship snippets for every block type (`table`, `column`, `foreign_key`, `index`, `view`, `layout`, `meta`) — type the block name and press <kbd>Tab</kbd>.
+Both extensions ship snippets for every block type (`table`, `sql_view`, `column`, `foreign_key`, `index`, `view`, `layout`, `meta`) — type the block name and press <kbd>Tab</kbd>.
 
 ## Supported databases
 
@@ -204,6 +210,7 @@ erdlens deliberately doesn't do these — other tools already do them well:
 
 - Migrations (use [Atlas](https://github.com/ariga/atlas), [goose](https://github.com/pressly/goose), or [dbmate](https://github.com/amacneil/dbmate))
 - Query execution (use [DBeaver](https://dbeaver.io), [TablePlus](https://tableplus.com), or `psql`)
+- Stored procedures / functions / triggers (procedural catalog, not ERD entities)
 - Hosted SaaS
 
 ## License

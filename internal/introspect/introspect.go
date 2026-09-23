@@ -27,11 +27,11 @@ type Introspector interface {
 // Options controls which objects are included in introspection.
 type Options struct {
 	Schemas []string // e.g. ["public"] for Postgres. Empty → driver default.
-	Include []string // Glob patterns of table names to include. Empty → all.
-	Exclude []string // Glob patterns of table names to exclude. Wins over Include.
+	Include []string // Glob patterns of table/view names to include. Empty → all.
+	Exclude []string // Glob patterns of table/view names to exclude. Wins over Include.
 }
 
-// Match reports whether the given table name should be kept given the
+// Match reports whether the given table or view name should be kept given the
 // include/exclude globs. Exclude wins over include. Glob syntax is
 // path.Match (supports *, ?, [class]).
 func (o Options) Match(name string) bool {

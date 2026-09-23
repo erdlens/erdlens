@@ -57,15 +57,31 @@ func Write(w io.Writer, s *schema.Schema) error {
 		return tables[i].Name < tables[j].Name
 	})
 
+	sqlViews := append([]schema.SQLView(nil), s.SQLViews...)
+	sort.SliceStable(sqlViews, func(i, j int) bool {
+		if sqlViews[i].Schema != sqlViews[j].Schema {
+			return sqlViews[i].Schema < sqlViews[j].Schema
+		}
+		return sqlViews[i].Name < sqlViews[j].Name
+	})
+
 	// When more than one schema is present, emit schema (and ref_schema)
 	// even for defaults so round-trips stay unambiguous.
-	multiSchema := hasMultipleSchemas(tables)
+	multiSchema := hasMultipleSchemas(tables, sqlViews)
 
 	for _, t := range tables {
 		if blockCount > 0 {
 			f.newline()
 		}
 		f.writeTable(&t, multiSchema)
+		blockCount++
+	}
+
+	for _, v := range sqlViews {
+		if blockCount > 0 {
+			f.newline()
+		}
+		f.writeSQLView(&v, multiSchema)
 		blockCount++
 	}
 
@@ -121,10 +137,16 @@ func (f *formatter) writeView(v *schema.View) {
 	f.printf("}\n")
 }
 
-func hasMultipleSchemas(tables []schema.Table) bool {
+func hasMultipleSchemas(tables []schema.Table, sqlViews []schema.SQLView) bool {
 	seen := map[string]struct{}{}
 	for _, t := range tables {
 		seen[effectiveSchema(t.Schema)] = struct{}{}
+		if len(seen) > 1 {
+			return true
+		}
+	}
+	for _, v := range sqlViews {
+		seen[effectiveSchema(v.Schema)] = struct{}{}
 		if len(seen) > 1 {
 			return true
 		}
@@ -184,6 +206,37 @@ func (f *formatter) writeTable(t *schema.Table, multiSchema bool) {
 		f.printf("  layout {\n")
 		f.printf("    x = %s\n", fmtFloat(t.Layout.X))
 		f.printf("    y = %s\n", fmtFloat(t.Layout.Y))
+		f.printf("  }\n")
+	}
+
+	f.printf("}\n")
+}
+
+func (f *formatter) writeSQLView(v *schema.SQLView, multiSchema bool) {
+	f.printf("sql_view %s {\n", q(v.Name))
+	schemaName := effectiveSchema(v.Schema)
+	if !schema.IsDefaultSchema(v.Schema) {
+		f.printf("  schema  = %s\n", q(v.Schema))
+	} else if multiSchema {
+		f.printf("  schema  = %s\n", q(schemaName))
+	}
+	if v.Comment != "" {
+		f.printf("  comment = %s\n", q(v.Comment))
+	}
+	if v.Materialized {
+		f.printf("  materialized = true\n")
+	}
+
+	for _, c := range v.Columns {
+		f.newline()
+		f.writeColumn(&c)
+	}
+
+	if v.Layout != nil {
+		f.newline()
+		f.printf("  layout {\n")
+		f.printf("    x = %s\n", fmtFloat(v.Layout.X))
+		f.printf("    y = %s\n", fmtFloat(v.Layout.Y))
 		f.printf("  }\n")
 	}
 

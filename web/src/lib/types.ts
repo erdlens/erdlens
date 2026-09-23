@@ -3,6 +3,7 @@ export interface Schema {
   dialect?: string
   views?: View[]
   tables: Table[]
+  sql_views?: SQLView[]
 }
 
 export interface View {
@@ -20,6 +21,24 @@ export interface Table {
   foreign_keys?: ForeignKey[]
   indexes?: Index[]
   layout?: Layout
+}
+
+/** Database VIEW or materialized view (not a UI filter preset). */
+export interface SQLView {
+  name: string
+  schema?: string
+  comment?: string
+  materialized?: boolean
+  columns: Column[]
+  layout?: Layout
+}
+
+/** Canvas relation: table or SQL view (shared identity / layout fields). */
+export type Relation = Pick<Table, 'name' | 'schema' | 'comment' | 'columns' | 'layout'> & {
+  primary_key?: string[]
+  foreign_keys?: ForeignKey[]
+  kind: 'table' | 'sql_view'
+  materialized?: boolean
 }
 
 export interface Column {

@@ -64,6 +64,14 @@ func (p *Postgres) Introspect(ctx context.Context, opts Options) (*schema.Schema
 		return nil, fmt.Errorf("read indexes: %w", err)
 	}
 
+	sqlViews, err := p.readSQLViews(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("read sql views: %w", err)
+	}
+	if err := p.readSQLViewColumns(ctx, opts, sqlViews); err != nil {
+		return nil, fmt.Errorf("read sql view columns: %w", err)
+	}
+
 	// Flatten map → deterministic slice.
 	out := &schema.Schema{Dialect: "postgres"}
 	keys := make([]string, 0, len(tables))
@@ -73,6 +81,14 @@ func (p *Postgres) Introspect(ctx context.Context, opts Options) (*schema.Schema
 	sort.Strings(keys)
 	for _, k := range keys {
 		out.Tables = append(out.Tables, *tables[k])
+	}
+	vkeys := make([]string, 0, len(sqlViews))
+	for k := range sqlViews {
+		vkeys = append(vkeys, k)
+	}
+	sort.Strings(vkeys)
+	for _, k := range vkeys {
+		out.SQLViews = append(out.SQLViews, *sqlViews[k])
 	}
 	return out, nil
 }
@@ -113,6 +129,87 @@ ORDER BY n.nspname, c.relname
 		}
 	}
 	return tables, rows.Err()
+}
+
+func (p *Postgres) readSQLViews(ctx context.Context, opts Options) (map[string]*schema.SQLView, error) {
+	const q = `
+SELECT n.nspname, c.relname, c.relkind, COALESCE(obj_description(c.oid, 'pg_class'), '')
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind IN ('v', 'm')
+  AND n.nspname = ANY($1)
+ORDER BY n.nspname, c.relname
+`
+	rows, err := p.conn.Query(ctx, q, opts.Schemas)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	views := make(map[string]*schema.SQLView)
+	for rows.Next() {
+		var nsp, name, relkind, comment string
+		if err := rows.Scan(&nsp, &name, &relkind, &comment); err != nil {
+			return nil, err
+		}
+		if !opts.Match(name) {
+			continue
+		}
+		views[tableKey(nsp, name)] = &schema.SQLView{
+			Name:         name,
+			Schema:       nsp,
+			Comment:      comment,
+			Materialized: relkind == "m",
+		}
+	}
+	return views, rows.Err()
+}
+
+func (p *Postgres) readSQLViewColumns(ctx context.Context, opts Options, views map[string]*schema.SQLView) error {
+	const q = `
+SELECT
+    n.nspname,
+    c.relname,
+    a.attname,
+    format_type(a.atttypid, a.atttypmod),
+    NOT a.attnotnull,
+    COALESCE(pg_get_expr(ad.adbin, ad.adrelid), ''),
+    COALESCE(col_description(c.oid, a.attnum), '')
+FROM pg_attribute a
+JOIN pg_class c ON c.oid = a.attrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+WHERE c.relkind IN ('v', 'm')
+  AND n.nspname = ANY($1)
+  AND a.attnum > 0
+  AND NOT a.attisdropped
+ORDER BY n.nspname, c.relname, a.attnum
+`
+	rows, err := p.conn.Query(ctx, q, opts.Schemas)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var nsp, viewName, name, typ, def, comment string
+		var nullable bool
+		if err := rows.Scan(&nsp, &viewName, &name, &typ, &nullable, &def, &comment); err != nil {
+			return err
+		}
+		v, ok := views[tableKey(nsp, viewName)]
+		if !ok {
+			continue
+		}
+		v.Columns = append(v.Columns, schema.Column{
+			Name:     name,
+			Type:     typ,
+			Nullable: nullable,
+			Default:  def,
+			Comment:  comment,
+		})
+	}
+	return rows.Err()
 }
 
 func (p *Postgres) readColumns(ctx context.Context, opts Options, tables map[string]*schema.Table) error {

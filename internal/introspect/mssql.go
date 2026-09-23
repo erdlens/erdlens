@@ -72,6 +72,14 @@ func (m *MSSQL) Introspect(ctx context.Context, opts Options) (*schema.Schema, e
 		return nil, fmt.Errorf("read indexes: %w", err)
 	}
 
+	sqlViews, err := m.readSQLViews(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("read sql views: %w", err)
+	}
+	if err := m.readSQLViewColumns(ctx, opts, sqlViews); err != nil {
+		return nil, fmt.Errorf("read sql view columns: %w", err)
+	}
+
 	out := &schema.Schema{Dialect: "mssql"}
 	keys := make([]string, 0, len(tables))
 	for k := range tables {
@@ -80,6 +88,14 @@ func (m *MSSQL) Introspect(ctx context.Context, opts Options) (*schema.Schema, e
 	sort.Strings(keys)
 	for _, k := range keys {
 		out.Tables = append(out.Tables, *tables[k])
+	}
+	vkeys := make([]string, 0, len(sqlViews))
+	for k := range sqlViews {
+		vkeys = append(vkeys, k)
+	}
+	sort.Strings(vkeys)
+	for _, k := range vkeys {
+		out.SQLViews = append(out.SQLViews, *sqlViews[k])
 	}
 	return out, nil
 }
@@ -123,6 +139,108 @@ ORDER BY s.name, t.name
 		}
 	}
 	return tables, rows.Err()
+}
+
+func (m *MSSQL) readSQLViews(ctx context.Context, opts Options) (map[string]*schema.SQLView, error) {
+	q, args := mssqlSchemaInQuery(`
+SELECT
+    s.name,
+    v.name,
+    ISNULL(CAST(ep.value AS nvarchar(4000)), ''),
+    CASE WHEN EXISTS (
+      SELECT 1 FROM sys.indexes i
+      WHERE i.object_id = v.object_id AND i.index_id > 0
+    ) THEN 1 ELSE 0 END
+FROM sys.views v
+JOIN sys.schemas s ON s.schema_id = v.schema_id
+LEFT JOIN sys.extended_properties ep
+  ON ep.major_id = v.object_id
+ AND ep.minor_id = 0
+ AND ep.class = 1
+ AND ep.name = N'MS_Description'
+WHERE v.is_ms_shipped = 0
+  AND s.name IN (%s)
+ORDER BY s.name, v.name
+`, opts.Schemas)
+	rows, err := m.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	views := make(map[string]*schema.SQLView)
+	for rows.Next() {
+		var nsp, name, comment string
+		var indexed int
+		if err := rows.Scan(&nsp, &name, &comment, &indexed); err != nil {
+			return nil, err
+		}
+		if !opts.Match(name) {
+			continue
+		}
+		views[tableKey(nsp, name)] = &schema.SQLView{
+			Name:         name,
+			Schema:       nsp,
+			Comment:      comment,
+			Materialized: indexed != 0,
+		}
+	}
+	return views, rows.Err()
+}
+
+func (m *MSSQL) readSQLViewColumns(ctx context.Context, opts Options, views map[string]*schema.SQLView) error {
+	q, args := mssqlSchemaInQuery(`
+SELECT
+    s.name,
+    v.name,
+    c.name,
+    ty.name,
+    c.max_length,
+    c.precision,
+    c.scale,
+    c.is_nullable,
+    ISNULL(CAST(ep.value AS nvarchar(4000)), ''),
+    c.column_id
+FROM sys.columns c
+JOIN sys.views v ON v.object_id = c.object_id
+JOIN sys.schemas s ON s.schema_id = v.schema_id
+JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+LEFT JOIN sys.extended_properties ep
+  ON ep.major_id = c.object_id
+ AND ep.minor_id = c.column_id
+ AND ep.class = 1
+ AND ep.name = N'MS_Description'
+WHERE v.is_ms_shipped = 0
+  AND s.name IN (%s)
+ORDER BY s.name, v.name, c.column_id
+`, opts.Schemas)
+	rows, err := m.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var nsp, viewName, name, typeName, comment string
+		var maxLen int
+		var precision, scale uint8
+		var nullable bool
+		var colID int
+		if err := rows.Scan(&nsp, &viewName, &name, &typeName, &maxLen, &precision, &scale, &nullable, &comment, &colID); err != nil {
+			return err
+		}
+		v, ok := views[tableKey(nsp, viewName)]
+		if !ok {
+			continue
+		}
+		v.Columns = append(v.Columns, schema.Column{
+			Name:     name,
+			Type:     mssqlFormatType(typeName, maxLen, int(precision), int(scale)),
+			Nullable: nullable,
+			Comment:  comment,
+		})
+	}
+	return rows.Err()
 }
 
 func (m *MSSQL) readColumns(ctx context.Context, opts Options, tables map[string]*schema.Table) error {

@@ -299,3 +299,70 @@ func TestViewRoundTrip(t *testing.T) {
 		t.Fatalf("view round-trip differs:\n--- first ---\n%s\n--- second ---\n%s", buf1.String(), buf2.String())
 	}
 }
+
+func TestSQLViewRoundTrip(t *testing.T) {
+	original := &schema.Schema{
+		Dialect: "postgres",
+		Tables:  sampleSchema().Tables,
+		SQLViews: []schema.SQLView{
+			{
+				Name:         "mat_orders",
+				Schema:       "public",
+				Materialized: true,
+				Comment:      "Order summary",
+				Columns: []schema.Column{
+					{Name: "user_id", Type: "uuid", Nullable: false},
+					{Name: "total", Type: "bigint", Nullable: true},
+				},
+				Layout: &schema.Layout{X: 10, Y: 20},
+			},
+			{
+				Name:   "active_users",
+				Schema: "public",
+				Columns: []schema.Column{
+					{Name: "id", Type: "uuid", Nullable: false},
+					{Name: "email", Type: "text", Nullable: false},
+				},
+			},
+		},
+	}
+	var buf1 bytes.Buffer
+	if err := Write(&buf1, original); err != nil {
+		t.Fatal(err)
+	}
+	out := buf1.String()
+	if !strings.Contains(out, `sql_view "active_users"`) {
+		t.Fatalf("missing active_users:\n%s", out)
+	}
+	if !strings.Contains(out, `sql_view "mat_orders"`) {
+		t.Fatalf("missing mat_orders:\n%s", out)
+	}
+	if !strings.Contains(out, `materialized = true`) {
+		t.Fatalf("missing materialized:\n%s", out)
+	}
+	iTables := strings.Index(out, `table "orders"`)
+	iSQLView := strings.Index(out, `sql_view "active_users"`)
+	if iTables < 0 || iSQLView < 0 || iSQLView < iTables {
+		t.Fatalf("expected sql_view blocks after tables:\n%s", out)
+	}
+	iActive := strings.Index(out, `sql_view "active_users"`)
+	iMat := strings.Index(out, `sql_view "mat_orders"`)
+	if iActive > iMat {
+		t.Fatalf("sql_views not sorted alphabetically:\n%s", out)
+	}
+
+	parsed, err := Parse(strings.NewReader(out))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(parsed.SQLViews) != 2 {
+		t.Fatalf("expected 2 sql views, got %d", len(parsed.SQLViews))
+	}
+	var buf2 bytes.Buffer
+	if err := Write(&buf2, parsed); err != nil {
+		t.Fatal(err)
+	}
+	if buf1.String() != buf2.String() {
+		t.Fatalf("sql_view round-trip differs:\n--- first ---\n%s\n--- second ---\n%s", buf1.String(), buf2.String())
+	}
+}

@@ -12,7 +12,7 @@
   import '@xyflow/svelte/dist/style.css'
   import { toPng, toSvg } from 'html-to-image'
 
-  import type { Schema, View, Table } from './types'
+  import type { Schema, View, Relation } from './types'
   import { autoLayout, isolatedLayout, nodeHeight, NODE_WIDTH } from './layout'
   import { matchesView } from './glob'
   import {
@@ -22,6 +22,7 @@
     schemaName,
     distinctSchemas,
     isDefaultSchema,
+    allRelations,
   } from './tableId'
   import TableNode from './TableNode.svelte'
   import logoUrl from '../assets/logo.svg'
@@ -37,7 +38,8 @@
   /** Optional header control rendered in the sidebar footer area. */
   export let onClose: (() => void) | null = null
 
-  const nodeTypes = { table: TableNode }
+  // xyflow NodeTypes expects a full Node props shape; our custom nodes only take `data`.
+  const nodeTypes = { table: TableNode } as any
   const nodes = writable<Node[]>([])
   const edges = writable<Edge[]>([])
   const { setCenter, fitView } = useSvelteFlow()
@@ -70,17 +72,17 @@
       ? (schema.views.find((v) => v.name === activeViewName) ?? null)
       : null
 
-  $: availableSchemas = schema ? distinctSchemas(schema.tables) : []
+  $: relations = schema ? allRelations(schema) : []
+
+  $: availableSchemas = relations.length > 0 ? distinctSchemas(relations) : []
   $: if (schema && !schemasInitialized && availableSchemas.length > 0) {
     enabledSchemas = new Set(availableSchemas)
     schemasInitialized = true
   }
 
-  $: tableById = schema
-    ? new Map(schema.tables.map((t) => [tableId(t), t]))
-    : new Map<string, Table>()
+  $: relationById = new Map(relations.map((t) => [tableId(t), t]))
 
-  $: matchedColumns = computeColumnMatches(schema, search)
+  $: matchedColumns = computeColumnMatches(relations, search)
 
   // relatedColumns: for the currently selected table, which columns in every
   // table participate in the relationships that touch the selection.
@@ -90,20 +92,18 @@
   //   by outgoing FKs from T.
   $: relatedColumns = computeRelatedColumns(schema, selected)
 
-  $: filteredTables = schema
-    ? schema.tables
-        .filter(
-          (t) =>
-            !activeView ||
-            matchesView(t.name, activeView.include, activeView.exclude),
-        )
-        .filter((t) => schemaEnabled(t))
-        .filter((t) => tableMatchesSearch(t, search, matchedColumns))
-    : []
+  $: filteredRelations = relations
+    .filter(
+      (t) =>
+        !activeView ||
+        matchesView(t.name, activeView.include, activeView.exclude),
+    )
+    .filter((t) => schemaEnabled(t))
+    .filter((t) => relationMatchesSearch(t, search, matchedColumns))
 
   $: edgeCount = $edges.length
 
-  function schemaEnabled(t: Table): boolean {
+  function schemaEnabled(t: Relation): boolean {
     if (availableSchemas.length <= 1) return true
     if (enabledSchemas.size === 0) return true
     return enabledSchemas.has(schemaName(t))
@@ -121,8 +121,8 @@
     enabledSchemas = next
   }
 
-  function tableMatchesSearch(
-    t: Table,
+  function relationMatchesSearch(
+    t: Relation,
     term: string,
     cols: Map<string, Set<string>>,
   ): boolean {
@@ -137,13 +137,13 @@
   }
 
   function computeColumnMatches(
-    sch: Schema | null,
+    rels: Relation[],
     term: string,
   ): Map<string, Set<string>> {
     const result = new Map<string, Set<string>>()
-    if (!sch || !term) return result
+    if (!term) return result
     const q = term.toLowerCase()
-    for (const t of sch.tables) {
+    for (const t of rels) {
       const hits = t.columns
         .filter((c) => c.name.toLowerCase().includes(q))
         .map((c) => c.name)
@@ -206,12 +206,11 @@
       build()
       const hash = decodeURIComponent(location.hash.slice(1))
       if (hash) {
-        const byId = schema!.tables.find((t) => tableId(t) === hash)
+        const rels = allRelations(schema!)
+        const byId = rels.find((t) => tableId(t) === hash)
         const byBare =
           byId ??
-          schema!.tables.find(
-            (t) => isDefaultSchema(t.schema) && t.name === hash,
-          )
+          rels.find((t) => isDefaultSchema(t.schema) && t.name === hash)
         if (byBare) {
           await tick()
           selectTable(tableId(byBare), true)
@@ -225,7 +224,7 @@
   function buildAdjacency() {
     adjacency = new Map()
     if (!schema) return
-    const known = new Set(schema.tables.map((t) => tableId(t)))
+    const known = new Set(allRelations(schema).map((t) => tableId(t)))
     for (const t of schema.tables) {
       const tid = tableId(t)
       if (!adjacency.has(tid)) adjacency.set(tid, new Set())
@@ -241,12 +240,12 @@
 
   function build() {
     if (!schema) return
-    const allSaved =
-      schema.tables.length > 0 && schema.tables.every((t) => t.layout)
-    const auto = allSaved ? new Map() : autoLayout(schema.tables)
+    const rels = allRelations(schema)
+    const allSaved = rels.length > 0 && rels.every((t) => t.layout)
+    const auto = allSaved ? new Map() : autoLayout(rels)
 
     nodes.set(
-      schema.tables.map((t) => {
+      rels.map((t) => {
         const tid = tableId(t)
         return {
           id: tid,
@@ -262,7 +261,7 @@
       }),
     )
 
-    const known = new Set(schema.tables.map((t) => tableId(t)))
+    const known = new Set(rels.map((t) => tableId(t)))
     const es: Edge[] = []
     for (const t of schema.tables) {
       const tid = tableId(t)
@@ -310,11 +309,11 @@
   ) {
     const inView = (id: string) => {
       if (!view) return true
-      const t = tableById.get(id)
+      const t = relationById.get(id)
       return matchesView(t?.name ?? id, view.include, view.exclude)
     }
     const inSchema = (id: string) => {
-      const t = tableById.get(id)
+      const t = relationById.get(id)
       return t ? schemaEnabled(t) : true
     }
     const neighbors = sel
@@ -376,10 +375,10 @@
 
     if (focusCanvas && schema) {
       const node = get(nodes).find((n) => n.id === id)
-      const table = schema.tables.find((t) => tableId(t) === id)
-      if (node && table) {
+      const rel = relationById.get(id)
+      if (node && rel) {
         const cx = node.position.x + NODE_WIDTH / 2
-        const cy = node.position.y + nodeHeight(table) / 2
+        const cy = node.position.y + nodeHeight(rel) / 2
         setCenter(cx, cy, { zoom: 1.1, duration: 500 })
       }
     }
@@ -432,12 +431,12 @@
   function applyIsolatedLayout(sel: string) {
     if (!schema) return
     const neighbors = adjacency.get(sel) ?? new Set<string>()
-    const focusTables = schema.tables.filter(
+    const focusRels = allRelations(schema).filter(
       (t) => tableId(t) === sel || neighbors.has(tableId(t)),
     )
-    if (!focusTables.some((t) => tableId(t) === sel)) return
+    if (!focusRels.some((t) => tableId(t) === sel)) return
 
-    const positions = isolatedLayout(focusTables, sel)
+    const positions = isolatedLayout(focusRels, sel)
 
     nodes.update((ns) =>
       ns.map((n) => {
@@ -481,6 +480,10 @@
       const n = current.find((node) => node.id === tableId(t))
       if (n) t.layout = { x: n.position.x, y: n.position.y }
     }
+    for (const v of schema.sql_views ?? []) {
+      const n = current.find((node) => node.id === tableId(v))
+      if (n) v.layout = { x: n.position.x, y: n.position.y }
+    }
   }
 
   async function saveLayout() {
@@ -495,6 +498,9 @@
     const payload: Record<string, { x: number; y: number }> = {}
     for (const t of schema.tables) {
       if (t.layout) payload[tableId(t)] = t.layout
+    }
+    for (const v of schema.sql_views ?? []) {
+      if (v.layout) payload[tableId(v)] = v.layout
     }
     try {
       await fetch('/api/layout', {
@@ -662,7 +668,7 @@
       <div class="view-picker">
         <label class="small muted" for="view-select">View</label>
         <select id="view-select" bind:value={activeViewName} class="select">
-          <option value="">All tables</option>
+          <option value="">All relations</option>
           {#each schema.views as v (v.name)}
             <option value={v.name}>{v.name}</option>
           {/each}
@@ -674,19 +680,22 @@
       bind:this={searchInput}
       class="search"
       type="search"
-      placeholder="Search tables & columns…  /"
+      placeholder="Search tables, views & columns…  /"
       bind:value={search}
     />
 
     <div class="tables">
       {#if schema}
         <div class="muted small stats">
-          {filteredTables.length} / {schema.tables.length} tables · {edgeCount} FKs
+          {filteredRelations.length} / {relations.length} relations · {edgeCount} FKs
+          {#if (schema.sql_views ?? []).length > 0}
+            · {(schema.sql_views ?? []).length} views
+          {/if}
           {#if matchedColumns.size > 0}
             · {[...matchedColumns.values()].reduce((n, s) => n + s.size, 0)} column hits
           {/if}
         </div>
-        {#each filteredTables as t (tableId(t))}
+        {#each filteredRelations as t (tableId(t))}
           <button
             class="table-item"
             class:selected={selected === tableId(t)}
@@ -695,9 +704,14 @@
             on:click={() => selectTable(tableId(t), true)}
           >
             <div class="row-top">
-              <span class="tname">{tableLabel(t)}</span>
+              <span class="tname">
+                {#if t.kind === 'sql_view'}
+                  <span class="kind-tag">{t.materialized ? 'M' : 'V'}</span>
+                {/if}
+                {tableLabel(t)}
+              </span>
               <span class="muted small counts">
-                {t.columns.length}c · {(t.foreign_keys ?? []).length}fk
+                {t.columns.length}c{#if t.kind === 'table'} · {(t.foreign_keys ?? []).length}fk{/if}
               </span>
             </div>
             {#if matchedColumns.has(tableId(t))}
@@ -916,6 +930,21 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
+  }
+  .kind-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 3px;
+    margin-right: 4px;
+    border-radius: 2px;
+    background: var(--muted);
+    color: var(--bg);
+    vertical-align: middle;
+  }
+  .table-item.selected .kind-tag {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
   }
   .counts {
     flex-shrink: 0;

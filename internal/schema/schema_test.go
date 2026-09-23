@@ -36,20 +36,19 @@ func TestRefTableID(t *testing.T) {
 	}
 }
 
-func TestIsDefaultSchema(t *testing.T) {
+func TestSQLViewID(t *testing.T) {
 	cases := []struct {
-		name string
-		want bool
+		v    SQLView
+		want string
 	}{
-		{"", true},
-		{"public", true},
-		{"dbo", true},
-		{"auth", false},
-		{"sales", false},
+		{SQLView{Name: "v"}, "v"},
+		{SQLView{Name: "v", Schema: "public"}, "v"},
+		{SQLView{Name: "v", Schema: "dbo"}, "v"},
+		{SQLView{Name: "v", Schema: "auth"}, "auth.v"},
 	}
 	for _, tc := range cases {
-		if got := IsDefaultSchema(tc.name); got != tc.want {
-			t.Fatalf("IsDefaultSchema(%q) = %v, want %v", tc.name, got, tc.want)
+		if got := SQLViewID(tc.v); got != tc.want {
+			t.Fatalf("SQLViewID(%+v) = %q, want %q", tc.v, got, tc.want)
 		}
 	}
 }

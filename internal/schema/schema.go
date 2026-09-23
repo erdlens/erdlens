@@ -8,10 +8,11 @@ package schema
 
 // Schema is the top-level container for an introspected or file-loaded database.
 type Schema struct {
-	Name    string  `json:"name,omitempty"`
-	Dialect string  `json:"dialect,omitempty"` // "postgres" | "mysql" | "sqlite" | "mssql"
-	Views   []View  `json:"views,omitempty"`
-	Tables  []Table `json:"tables"`
+	Name     string    `json:"name,omitempty"`
+	Dialect  string    `json:"dialect,omitempty"` // "postgres" | "mysql" | "sqlite" | "mssql"
+	Views    []View    `json:"views,omitempty"`     // UI filter presets (not SQL VIEW objects)
+	Tables   []Table   `json:"tables"`
+	SQLViews []SQLView `json:"sql_views,omitempty"` // database VIEW / materialized view relations
 }
 
 // View is a saved, named subset of tables that the viewer can filter to.
@@ -21,6 +22,17 @@ type View struct {
 	Name    string   `json:"name"`
 	Include []string `json:"include,omitempty"` // glob patterns; empty means all
 	Exclude []string `json:"exclude,omitempty"` // glob patterns; wins over include
+}
+
+// SQLView describes a database VIEW or materialized view. Columns only —
+// no invented PKs/FKs. Distinct from View (UI filter presets).
+type SQLView struct {
+	Name         string   `json:"name"`
+	Schema       string   `json:"schema,omitempty"`
+	Comment      string   `json:"comment,omitempty"`
+	Materialized bool     `json:"materialized,omitempty"`
+	Columns      []Column `json:"columns"`
+	Layout       *Layout  `json:"layout,omitempty"`
 }
 
 // Table describes a relation with its columns, keys, and optional layout hints.
@@ -78,6 +90,15 @@ func RefTableID(fk ForeignKey) string {
 		return fk.RefSchema + "." + fk.RefTable
 	}
 	return fk.RefTable
+}
+
+// SQLViewID returns a stable identity for a SQL view, using the same
+// default-schema rules as TableID.
+func SQLViewID(v SQLView) string {
+	if !IsDefaultSchema(v.Schema) {
+		return v.Schema + "." + v.Name
+	}
+	return v.Name
 }
 
 // Index describes a non-PK index. Kept minimal for v1.

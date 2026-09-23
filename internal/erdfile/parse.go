@@ -16,9 +16,10 @@ import (
 // we can evolve the file format independently.
 
 type fileDoc struct {
-	Meta   *metaBlock   `hcl:"meta,block"`
-	Views  []viewBlock  `hcl:"view,block"`
-	Tables []tableBlock `hcl:"table,block"`
+	Meta     *metaBlock      `hcl:"meta,block"`
+	Views    []viewBlock     `hcl:"view,block"`
+	Tables   []tableBlock    `hcl:"table,block"`
+	SQLViews []sqlViewBlock  `hcl:"sql_view,block"`
 }
 
 type metaBlock struct {
@@ -44,6 +45,16 @@ type tableBlock struct {
 	Indexes     []indexBlock  `hcl:"index,block"`
 	Layout      *layoutBlock  `hcl:"layout,block"`
 	Remain      hcl.Body      `hcl:",remain"`
+}
+
+type sqlViewBlock struct {
+	Name         string        `hcl:"name,label"`
+	Schema       string        `hcl:"schema,optional"`
+	Comment      string        `hcl:"comment,optional"`
+	Materialized bool          `hcl:"materialized,optional"`
+	Columns      []columnBlock `hcl:"column,block"`
+	Layout       *layoutBlock  `hcl:"layout,block"`
+	Remain       hcl.Body      `hcl:",remain"`
 }
 
 type columnBlock struct {
@@ -163,6 +174,32 @@ func docToSchema(d *fileDoc) *schema.Schema {
 			t.Layout = &schema.Layout{X: tb.Layout.X, Y: tb.Layout.Y}
 		}
 		s.Tables = append(s.Tables, t)
+	}
+	for _, vb := range d.SQLViews {
+		v := schema.SQLView{
+			Name:         vb.Name,
+			Schema:       vb.Schema,
+			Comment:      vb.Comment,
+			Materialized: vb.Materialized,
+		}
+		for _, cb := range vb.Columns {
+			nullable := true
+			if cb.Null != nil {
+				nullable = *cb.Null
+			}
+			v.Columns = append(v.Columns, schema.Column{
+				Name:     cb.Name,
+				Type:     cb.Type,
+				Nullable: nullable,
+				Default:  cb.Default,
+				Unique:   cb.Unique,
+				Comment:  cb.Comment,
+			})
+		}
+		if vb.Layout != nil {
+			v.Layout = &schema.Layout{X: vb.Layout.X, Y: vb.Layout.Y}
+		}
+		s.SQLViews = append(s.SQLViews, v)
 	}
 	return s
 }

@@ -96,7 +96,7 @@ func (s *Server) handleSchema(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-// layoutPayload maps table name -> position.
+// layoutPayload maps relation id (table or sql_view) -> position.
 type layoutPayload map[string]schema.Layout
 
 func (s *Server) handleLayout(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +121,18 @@ func (s *Server) handleLayout(w http.ResponseWriter, r *http.Request) {
 		if l, ok := payload[s.schema.Tables[i].Name]; ok {
 			ll := l
 			s.schema.Tables[i].Layout = &ll
+		}
+	}
+	for i := range s.schema.SQLViews {
+		id := schema.SQLViewID(s.schema.SQLViews[i])
+		if l, ok := payload[id]; ok {
+			ll := l
+			s.schema.SQLViews[i].Layout = &ll
+			continue
+		}
+		if l, ok := payload[s.schema.SQLViews[i].Name]; ok {
+			ll := l
+			s.schema.SQLViews[i].Layout = &ll
 		}
 	}
 	sc := s.schema

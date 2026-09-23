@@ -1,10 +1,10 @@
 <script lang="ts">
   import { Handle, Position } from '@xyflow/svelte'
-  import type { Table } from './types'
+  import type { Relation } from './types'
   import { isDefaultSchema } from './tableId'
 
   export let data: {
-    table: Table
+    table: Relation
     highlighted?: boolean
     dimmed?: boolean
     matched?: Set<string>
@@ -15,6 +15,8 @@
   $: fkColumns = new Set((data.table.foreign_keys ?? []).flatMap((fk) => fk.columns))
   $: matched = data.matched ?? new Set<string>()
   $: related = data.related ?? new Set<string>()
+  $: isSQLView = data.table.kind === 'sql_view'
+  $: kindLabel = data.table.materialized ? 'MATVIEW' : isSQLView ? 'VIEW' : ''
 </script>
 
 <div
@@ -22,9 +24,13 @@
   class:highlighted={data.highlighted}
   class:dimmed={data.dimmed}
   class:has-match={matched.size > 0}
+  class:sql-view={isSQLView}
   title={data.table.comment || ''}
 >
   <div class="header">
+    {#if kindLabel}
+      <span class="kind">{kindLabel}</span>
+    {/if}
     {#if data.table.schema && !isDefaultSchema(data.table.schema)}
       <span class="schema">{data.table.schema}.</span>
     {/if}
@@ -74,6 +80,9 @@
     overflow: hidden;
     transition: opacity 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
+  .table-node.sql-view {
+    border-style: dashed;
+  }
   .table-node.highlighted {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px var(--accent), 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -97,12 +106,28 @@
     color: var(--muted);
     font-weight: 400;
   }
+  .header .kind {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 1px 4px;
+    margin-right: 6px;
+    border-radius: 3px;
+    vertical-align: middle;
+    background: var(--muted);
+    color: var(--bg);
+  }
   .highlighted .header {
     background: var(--accent);
     color: white;
   }
   .highlighted .header .schema {
     color: rgba(255, 255, 255, 0.7);
+  }
+  .highlighted .header .kind {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
   }
   .body {
     display: flex;
