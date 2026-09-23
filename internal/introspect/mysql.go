@@ -110,7 +110,7 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	tables := make(map[string]*schema.Table)
 	for rows.Next() {
@@ -149,7 +149,7 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var nsp, table, name, typ, nullable, comment string
@@ -197,7 +197,7 @@ ORDER BY kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.ORDINAL_POSITION
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var nsp, table, col string
 		var ord int
@@ -236,7 +236,7 @@ ORDER BY kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSI
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type fkKey struct{ table, name string }
 	acc := map[fkKey]*schema.ForeignKey{}
@@ -307,7 +307,7 @@ ORDER BY kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSI
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type uKey struct{ table, name string }
 	acc := map[uKey]*schema.Index{}
@@ -391,7 +391,7 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type iKey struct{ table, name string }
 	acc := map[iKey]*schema.Index{}
@@ -410,10 +410,6 @@ ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
 		// Skip unique indexes already represented via UNIQUE constraints / Column.Unique.
 		if nonUnique == 0 && uniqueNames[tk] != nil && uniqueNames[tk][name] {
 			continue
-		}
-		// Unique indexes not listed as TABLE_CONSTRAINTS UNIQUE still need folding.
-		if nonUnique == 0 {
-			// Defer: accumulate then fold single-col into Column.Unique below.
 		}
 		key := iKey{tk, name}
 		idx, ok := acc[key]
@@ -490,7 +486,7 @@ func schemaInQuery(format string, schemas []string) (string, []any) {
 //   - mariadb://… (same rules)
 func mysqlDriverDSN(dsn string) (string, error) {
 	lower := strings.ToLower(dsn)
-	rest := dsn
+	var rest string
 	switch {
 	case strings.HasPrefix(lower, "mysql://"):
 		rest = dsn[len("mysql://"):]

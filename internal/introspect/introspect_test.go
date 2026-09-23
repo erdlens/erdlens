@@ -64,7 +64,7 @@ func TestOpenSupportedSchemes(t *testing.T) {
 				// Connect failure is OK for unreachable hosts.
 				return
 			}
-			defer i.Close()
+		defer func() { _ = i.Close() }()
 		})
 	}
 }
@@ -133,7 +133,7 @@ func TestSQLiteIntrospect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer i.Close()
+	defer func() { _ = i.Close() }()
 
 	// Seed via the concrete type.
 	sq := i.(*SQLite)
@@ -280,7 +280,7 @@ func TestMSSQLIntrospectIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer i.Close()
+	defer func() { _ = i.Close() }()
 
 	m := i.(*MSSQL)
 	_, err = m.db.ExecContext(ctx, `
@@ -357,7 +357,7 @@ func TestMySQLIntrospectIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer i.Close()
+	defer func() { _ = i.Close() }()
 
 	m := i.(*MySQL)
 	_, err = m.db.ExecContext(ctx, `

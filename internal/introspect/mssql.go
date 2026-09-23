@@ -105,7 +105,7 @@ ORDER BY s.name, t.name
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	tables := make(map[string]*schema.Table)
 	for rows.Next() {
@@ -159,7 +159,7 @@ ORDER BY s.name, t.name, c.column_id
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var nsp, table, name, typeName, def, comment string
@@ -213,7 +213,7 @@ ORDER BY s.name, t.name, ic.key_ordinal
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var nsp, table, col string
 		var ord int
@@ -258,7 +258,7 @@ ORDER BY SCHEMA_NAME(t.schema_id), t.name, fk.name, fkc.constraint_column_id
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type fkKey struct{ table, name string }
 	acc := map[fkKey]*schema.ForeignKey{}
@@ -334,7 +334,7 @@ ORDER BY s.name, t.name, i.name, ic.key_ordinal
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type uKey struct{ table, name string }
 	acc := map[uKey]*schema.Index{}
@@ -429,7 +429,7 @@ ORDER BY s.name, t.name, i.name, ic.key_ordinal
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type iKey struct{ table, name string }
 	acc := map[iKey]*schema.Index{}

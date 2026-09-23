@@ -87,7 +87,7 @@ ORDER BY name
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	tables := make(map[string]*schema.Table)
 	for rows.Next() {
@@ -120,7 +120,7 @@ func (s *SQLite) readColumnsAndPKs(ctx context.Context, tables map[string]*schem
 			var notNull, pk int
 			var def sql.NullString
 			if err := rows.Scan(&cid, &name, &typ, &notNull, &def, &pk); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return err
 			}
 			col := schema.Column{
@@ -137,7 +137,7 @@ func (s *SQLite) readColumnsAndPKs(ctx context.Context, tables map[string]*schem
 			}
 		}
 		err = rows.Err()
-		rows.Close()
+		_ = rows.Close()
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (s *SQLite) readForeignKeys(ctx context.Context, tables map[string]*schema.
 			var table, from, to, onUpdate, onDelete, match string
 			// id, seq, table, from, to, on_update, on_delete, match
 			if err := rows.Scan(&id, &seq, &table, &from, &to, &onUpdate, &onDelete, &match); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return err
 			}
 			fk, ok := byID[id]
@@ -182,7 +182,7 @@ func (s *SQLite) readForeignKeys(ctx context.Context, tables map[string]*schema.
 			fk.RefColumns = append(fk.RefColumns, to)
 		}
 		err = rows.Err()
-		rows.Close()
+		_ = rows.Close()
 		if err != nil {
 			return err
 		}
@@ -216,13 +216,13 @@ func (s *SQLite) readIndexes(ctx context.Context, tables map[string]*schema.Tabl
 			var partial int
 			// seq, name, unique, origin, partial
 			if err := rows.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return err
 			}
 			metas = append(metas, idxMeta{name: name, unique: unique != 0, origin: origin})
 		}
 		err = rows.Err()
-		rows.Close()
+		_ = rows.Close()
 		if err != nil {
 			return err
 		}
@@ -265,7 +265,7 @@ func (s *SQLite) indexColumns(ctx context.Context, indexName string) ([]string, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	type colOrd struct {
 		ord  int
 		name string
