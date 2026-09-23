@@ -29,9 +29,10 @@ Or grab a binary from the [Releases page](https://github.com/erdlens/erdlens/rel
 # Explore a live database in one command (temp file in /tmp)
 erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb'
 
-# MySQL / MariaDB and SQLite work the same way
+# MySQL / MariaDB, SQLite, and MSSQL work the same way
 erdlens view --dsn 'mysql://user:pass@localhost:3306/mydb'
 erdlens view --dsn 'sqlite:///path/to/db.sqlite'
+erdlens view --dsn 'sqlserver://user:pass@localhost:1433?database=mydb'
 
 # Include multiple Postgres schemas (not just public)
 erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb' --schema public --schema auth
@@ -74,9 +75,9 @@ All commands take `--help` for full flag documentation.
 
 | Flag | Purpose |
 |---|---|
-| `--dsn` | Database DSN (`postgres://…`, `mysql://…`, `sqlite://…`) — **required** |
+| `--dsn` | Database DSN (`postgres://…`, `mysql://…`, `sqlite://…`, `sqlserver://…`) — **required** |
 | `-o, --output` | Output file path (default stdout) |
-| `--schema` | Schemas/databases to include (Postgres/MySQL; ignored for SQLite). Empty → driver default (`public` / current DB) |
+| `--schema` | Schemas/databases to include (Postgres/MySQL/MSSQL; ignored for SQLite). Empty → driver default (`public` / current DB / `dbo`) |
 | `--include` | Glob patterns of table names to include (repeatable) |
 | `--exclude` | Glob patterns of table names to exclude (repeatable) |
 | `--timeout` | Overall connection + introspection timeout (default `30s`) |
@@ -87,7 +88,7 @@ All commands take `--help` for full flag documentation.
 |---|---|
 | `--dsn` | Introspect a live database instead of reading a file |
 | `-o, --output` | When using `--dsn`, save the `.erd` here (default: temp file in `/tmp`) |
-| `--schema` | Schemas/databases to include when using `--dsn` (Postgres/MySQL; ignored for SQLite) |
+| `--schema` | Schemas/databases to include when using `--dsn` (Postgres/MySQL/MSSQL; ignored for SQLite) |
 | `--include` | Glob patterns of table names to include when using `--dsn` |
 | `--exclude` | Glob patterns of table names to exclude when using `--dsn` |
 | `--timeout` | Connection + introspection timeout when using `--dsn` (default `30s`) |
@@ -168,7 +169,7 @@ Both extensions ship snippets for every block type (`table`, `column`, `foreign_
 | PostgreSQL | ✅ | `postgres://user:pass@localhost:5432/mydb` |
 | MySQL / MariaDB | ✅ | `mysql://user:pass@localhost:3306/mydb` |
 | SQLite | ✅ | `sqlite:///path/to/db.sqlite` |
-| MSSQL | 🔜 | — |
+| MSSQL | ✅ | `sqlserver://user:pass@localhost:1433?database=mydb` |
 
 ## Development
 

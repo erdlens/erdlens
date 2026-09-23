@@ -1,11 +1,11 @@
 import type { ForeignKey, Table } from './types'
 
-/** Empty and "public" share the bare-name identity for single-schema diagrams. */
+/** Empty, "public", and "dbo" share the bare-name identity for single-schema diagrams. */
 export function isDefaultSchema(schema?: string): boolean {
-  return !schema || schema === 'public'
+  return !schema || schema === 'public' || schema === 'dbo'
 }
 
-/** Stable node/layout identity: `schema.name` when non-public, else bare name. */
+/** Stable node/layout identity: `schema.name` when non-default, else bare name. */
 export function tableId(t: Pick<Table, 'name' | 'schema'>): string {
   if (isDefaultSchema(t.schema)) return t.name
   return `${t.schema}.${t.name}`
@@ -17,7 +17,7 @@ export function refTableId(fk: ForeignKey): string {
   return `${fk.ref_schema}.${fk.ref_table}`
 }
 
-/** Display label: qualify when schema is non-public. */
+/** Display label: qualify when schema is non-default. */
 export function tableLabel(t: Pick<Table, 'name' | 'schema'>): string {
   return tableId(t)
 }

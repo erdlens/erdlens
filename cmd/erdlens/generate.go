@@ -34,6 +34,7 @@ output — this is the promise that keeps diffs clean.`,
 		Example: `  erdlens generate --dsn 'postgres://user:pass@host/db' -o schema.erd
   erdlens generate --dsn 'mysql://user:pass@tcp(localhost:3306)/mydb' -o schema.erd
   erdlens generate --dsn 'sqlite:///path/to/db.sqlite' -o schema.erd
+  erdlens generate --dsn 'sqlserver://user:pass@localhost:1433?database=mydb' -o schema.erd
   erdlens generate --dsn "$DATABASE_URL" --schema public --schema auth -o schema.erd
   erdlens generate --dsn "$DATABASE_URL" --exclude 'audit_*' -o schema.erd`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -63,9 +64,9 @@ output — this is the promise that keeps diffs clean.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&dsn, "dsn", "", "Database DSN (postgres://, mysql://, sqlite://, …)")
+	cmd.Flags().StringVar(&dsn, "dsn", "", "Database DSN (postgres://, mysql://, sqlite://, sqlserver://, …)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output .erd file path (default: stdout)")
-	cmd.Flags().StringSliceVar(&schemas, "schema", nil, "Schemas/databases to include (Postgres/MySQL; ignored for SQLite). Empty → driver default")
+	cmd.Flags().StringSliceVar(&schemas, "schema", nil, "Schemas/databases to include (Postgres/MySQL/MSSQL; ignored for SQLite). Empty → driver default")
 	cmd.Flags().StringSliceVar(&include, "include", nil, "Glob patterns of table names to include")
 	cmd.Flags().StringSliceVar(&exclude, "exclude", nil, "Glob patterns of table names to exclude")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Overall connection + introspection timeout")

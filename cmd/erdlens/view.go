@@ -46,6 +46,7 @@ The server binds to 127.0.0.1 only.`,
   erdlens view --dsn 'postgres://user:pass@localhost:5432/mydb'
   erdlens view --dsn 'mysql://user:pass@tcp(localhost:3306)/mydb'
   erdlens view --dsn 'sqlite:///path/to/db.sqlite'
+  erdlens view --dsn 'sqlserver://user:pass@localhost:1433?database=mydb'
   erdlens view --dsn "$DATABASE_URL" --schema public --schema auth
   erdlens view --dsn "$DATABASE_URL" -o schema.erd`,
 		Args: cobra.MaximumNArgs(1),
@@ -110,7 +111,7 @@ The server binds to 127.0.0.1 only.`,
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Don't automatically open a browser")
 	cmd.Flags().StringVar(&dsn, "dsn", "", "Introspect a live database instead of reading a file")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "When using --dsn, write the .erd file here (default: temp file in /tmp)")
-	cmd.Flags().StringSliceVar(&schemas, "schema", nil, "Schemas/databases to include when using --dsn (Postgres/MySQL; ignored for SQLite). Empty → driver default")
+	cmd.Flags().StringSliceVar(&schemas, "schema", nil, "Schemas/databases to include when using --dsn (Postgres/MySQL/MSSQL; ignored for SQLite). Empty → driver default")
 	cmd.Flags().StringSliceVar(&include, "include", nil, "Glob patterns of table names to include when using --dsn")
 	cmd.Flags().StringSliceVar(&exclude, "exclude", nil, "Glob patterns of table names to exclude when using --dsn")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Connection + introspection timeout when using --dsn")

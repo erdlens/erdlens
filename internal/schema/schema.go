@@ -56,11 +56,17 @@ type ForeignKey struct {
 	OnUpdate   string   `json:"on_update,omitempty"`
 }
 
-// TableID returns a stable identity for a table. Non-public Postgres schemas
-// are qualified as "schema.name"; empty and "public" use the bare table name
-// so single-schema diagrams stay compatible with existing hashes/layouts.
+// IsDefaultSchema reports whether name is a dialect default that should use
+// the bare table name for identity/display (Postgres public, MSSQL dbo, or empty).
+func IsDefaultSchema(name string) bool {
+	return name == "" || name == "public" || name == "dbo"
+}
+
+// TableID returns a stable identity for a table. Non-default schemas are
+// qualified as "schema.name"; empty, "public", and "dbo" use the bare table
+// name so single-schema diagrams stay compatible with existing hashes/layouts.
 func TableID(t Table) string {
-	if t.Schema != "" && t.Schema != "public" {
+	if !IsDefaultSchema(t.Schema) {
 		return t.Schema + "." + t.Name
 	}
 	return t.Name
@@ -68,7 +74,7 @@ func TableID(t Table) string {
 
 // RefTableID returns the identity of the table referenced by fk.
 func RefTableID(fk ForeignKey) string {
-	if fk.RefSchema != "" && fk.RefSchema != "public" {
+	if !IsDefaultSchema(fk.RefSchema) {
 		return fk.RefSchema + "." + fk.RefTable
 	}
 	return fk.RefTable

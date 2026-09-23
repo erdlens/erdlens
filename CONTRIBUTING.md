@@ -65,10 +65,11 @@ docs/              User-facing documentation
 - Postgres integration tests are TODO. If you have testcontainers-go experience, PRs welcome.
 - SQLite is covered by an in-memory unit test (`TestSQLiteIntrospect`).
 - MySQL integration is opt-in: `ERDLENS_MYSQL_DSN='mysql://…' go test ./internal/introspect/ -run MySQL`.
+- MSSQL integration is opt-in: `ERDLENS_MSSQL_DSN='sqlserver://…?database=…' go test ./internal/introspect/ -run MSSQL`.
 
 ## Adding a new database driver
 
-Drivers today: Postgres (`pgx`), MySQL/MariaDB (`go-sql-driver/mysql`), SQLite (`modernc.org/sqlite`, pure Go / CGO-free).
+Drivers today: Postgres (`pgx`), MySQL/MariaDB (`go-sql-driver/mysql`), SQLite (`modernc.org/sqlite`, pure Go / CGO-free), MSSQL (`microsoft/go-mssqldb`, pure Go / CGO-free).
 
 1. Add the driver dep to `go.mod` (must stay CGO-free for goreleaser).
 2. Create `internal/introspect/<dialect>.go` implementing the `Introspector` interface.

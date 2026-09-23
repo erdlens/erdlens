@@ -57,8 +57,8 @@ func Write(w io.Writer, s *schema.Schema) error {
 		return tables[i].Name < tables[j].Name
 	})
 
-	// When more than one schema is present, emit schema = "public" (and
-	// ref_schema = "public") so round-trips stay unambiguous.
+	// When more than one schema is present, emit schema (and ref_schema)
+	// even for defaults so round-trips stay unambiguous.
 	multiSchema := hasMultipleSchemas(tables)
 
 	for _, t := range tables {
@@ -124,11 +124,7 @@ func (f *formatter) writeView(v *schema.View) {
 func hasMultipleSchemas(tables []schema.Table) bool {
 	seen := map[string]struct{}{}
 	for _, t := range tables {
-		s := t.Schema
-		if s == "" {
-			s = "public"
-		}
-		seen[s] = struct{}{}
+		seen[effectiveSchema(t.Schema)] = struct{}{}
 		if len(seen) > 1 {
 			return true
 		}
@@ -136,15 +132,21 @@ func hasMultipleSchemas(tables []schema.Table) bool {
 	return false
 }
 
+// effectiveSchema normalizes empty to "public" for multi-schema detection
+// and explicit emit (Postgres convention when schema was omitted).
+func effectiveSchema(name string) string {
+	if name == "" {
+		return "public"
+	}
+	return name
+}
+
 func (f *formatter) writeTable(t *schema.Table, multiSchema bool) {
 	f.printf("table %s {\n", q(t.Name))
-	schemaName := t.Schema
-	if schemaName == "" {
-		schemaName = "public"
-	}
-	if t.Schema != "" && t.Schema != "public" {
+	schemaName := effectiveSchema(t.Schema)
+	if !schema.IsDefaultSchema(t.Schema) {
 		f.printf("  schema  = %s\n", q(t.Schema))
-	} else if multiSchema && (t.Schema == "" || t.Schema == "public") {
+	} else if multiSchema {
 		f.printf("  schema  = %s\n", q(schemaName))
 	}
 	if t.Comment != "" {
@@ -214,13 +216,10 @@ func (f *formatter) writeForeignKey(fk *schema.ForeignKey, multiSchema bool) {
 	}
 	f.printf("  foreign_key %s {\n", q(name))
 	f.printf("    columns     = %s\n", qList(fk.Columns))
-	refSchema := fk.RefSchema
-	if refSchema == "" {
-		refSchema = "public"
-	}
-	if fk.RefSchema != "" && fk.RefSchema != "public" {
+	refSchema := effectiveSchema(fk.RefSchema)
+	if !schema.IsDefaultSchema(fk.RefSchema) {
 		f.printf("    ref_schema  = %s\n", q(fk.RefSchema))
-	} else if multiSchema && (fk.RefSchema == "" || fk.RefSchema == "public") {
+	} else if multiSchema {
 		f.printf("    ref_schema  = %s\n", q(refSchema))
 	}
 	f.printf("    ref_table   = %s\n", q(fk.RefTable))

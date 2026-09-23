@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Handle, Position } from '@xyflow/svelte'
   import type { Table } from './types'
+  import { isDefaultSchema } from './tableId'
 
   export let data: {
     table: Table
@@ -24,7 +25,7 @@
   title={data.table.comment || ''}
 >
   <div class="header">
-    {#if data.table.schema && data.table.schema !== 'public'}
+    {#if data.table.schema && !isDefaultSchema(data.table.schema)}
       <span class="schema">{data.table.schema}.</span>
     {/if}
     {data.table.name}

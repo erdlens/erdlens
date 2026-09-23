@@ -67,8 +67,10 @@ func Open(ctx context.Context, dsn string) (Introspector, error) {
 		return NewMySQL(ctx, dsn)
 	case "sqlite", "sqlite3":
 		return NewSQLite(ctx, dsn)
+	case "mssql", "sqlserver":
+		return NewMSSQL(ctx, dsn)
 	default:
-		return nil, fmt.Errorf("%w: %q (supported: postgres, mysql, mariadb, sqlite)", ErrUnsupportedDialect, scheme)
+		return nil, fmt.Errorf("%w: %q (supported: postgres, mysql, mariadb, sqlite, mssql, sqlserver)", ErrUnsupportedDialect, scheme)
 	}
 }
 

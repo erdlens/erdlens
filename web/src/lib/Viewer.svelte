@@ -21,6 +21,7 @@
     tableLabel,
     schemaName,
     distinctSchemas,
+    isDefaultSchema,
   } from './tableId'
   import TableNode from './TableNode.svelte'
   import logoUrl from '../assets/logo.svg'
@@ -209,7 +210,7 @@
         const byBare =
           byId ??
           schema!.tables.find(
-            (t) => (!t.schema || t.schema === 'public') && t.name === hash,
+            (t) => isDefaultSchema(t.schema) && t.name === hash,
           )
         if (byBare) {
           await tick()

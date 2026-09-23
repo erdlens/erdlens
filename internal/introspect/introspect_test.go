@@ -31,7 +31,7 @@ func TestOptionsMatch(t *testing.T) {
 }
 
 func TestOpenUnsupportedDialect(t *testing.T) {
-	_, err := Open(context.TODO(), "mssql://foo/bar")
+	_, err := Open(context.TODO(), "oracle://foo/bar")
 	if err == nil {
 		t.Fatal("expected error for unsupported dialect")
 	}
@@ -51,6 +51,8 @@ func TestOpenSupportedSchemes(t *testing.T) {
 		{"sqlite://:memory:", ""},
 		{"sqlite3://:memory:", ""},
 		{"postgres://user:pass@127.0.0.1:1/db", ""},
+		{"mssql://user:pass@127.0.0.1:1?database=db", ""},
+		{"sqlserver://user:pass@127.0.0.1:1?database=db", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.dsn, func(t *testing.T) {
@@ -214,6 +216,134 @@ CREATE UNIQUE INDEX orders_ext_unique ON orders(id, user_id);
 	}
 	if !foundUQ {
 		t.Fatalf("missing multi-col unique in %#v", orders.Indexes)
+	}
+}
+
+func TestMSSQLDriverDSN(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{
+			"sqlserver://user:pass@localhost:1433?database=mydb",
+			"sqlserver://user:pass@localhost:1433?database=mydb",
+		},
+		{
+			"mssql://user:pass@localhost:1433?database=mydb",
+			"sqlserver://user:pass@localhost:1433?database=mydb",
+		},
+		{
+			"MSSQL://sa@127.0.0.1?database=app",
+			"sqlserver://sa@127.0.0.1?database=app",
+		},
+	}
+	for _, tc := range cases {
+		got, err := mssqlDriverDSN(tc.in)
+		if err != nil {
+			t.Fatalf("mssqlDriverDSN(%q): %v", tc.in, err)
+		}
+		if got != tc.want {
+			t.Fatalf("mssqlDriverDSN(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestMSSQLFormatType(t *testing.T) {
+	cases := []struct {
+		name                string
+		maxLen, prec, scale int
+		want                string
+	}{
+		{"varchar", 50, 0, 0, "varchar(50)"},
+		{"nvarchar", 100, 0, 0, "nvarchar(50)"},
+		{"varchar", -1, 0, 0, "varchar(max)"},
+		{"decimal", 0, 10, 2, "decimal(10,2)"},
+		{"int", 4, 10, 0, "int"},
+		{"datetime2", 0, 0, 7, "datetime2(7)"},
+	}
+	for _, tc := range cases {
+		got := mssqlFormatType(tc.name, tc.maxLen, tc.prec, tc.scale)
+		if got != tc.want {
+			t.Fatalf("mssqlFormatType(%q,%d,%d,%d) = %q, want %q",
+				tc.name, tc.maxLen, tc.prec, tc.scale, got, tc.want)
+		}
+	}
+}
+
+func TestMSSQLIntrospectIntegration(t *testing.T) {
+	dsn := os.Getenv("ERDLENS_MSSQL_DSN")
+	if dsn == "" {
+		t.Skip("set ERDLENS_MSSQL_DSN to run MSSQL integration test")
+	}
+	ctx := context.Background()
+	i, err := Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer i.Close()
+
+	m := i.(*MSSQL)
+	_, err = m.db.ExecContext(ctx, `
+IF OBJECT_ID('dbo.erdlens_orders', 'U') IS NOT NULL DROP TABLE dbo.erdlens_orders;
+IF OBJECT_ID('dbo.erdlens_users', 'U') IS NOT NULL DROP TABLE dbo.erdlens_users;
+CREATE TABLE dbo.erdlens_users (
+  id INT NOT NULL PRIMARY KEY,
+  email NVARCHAR(255) NOT NULL UNIQUE
+);
+CREATE TABLE dbo.erdlens_orders (
+  id INT NOT NULL PRIMARY KEY,
+  user_id INT NOT NULL,
+  CONSTRAINT fk_erdlens_orders_user FOREIGN KEY (user_id) REFERENCES dbo.erdlens_users(id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = m.db.ExecContext(ctx, `IF OBJECT_ID('dbo.erdlens_orders', 'U') IS NOT NULL DROP TABLE dbo.erdlens_orders`)
+		_, _ = m.db.ExecContext(ctx, `IF OBJECT_ID('dbo.erdlens_users', 'U') IS NOT NULL DROP TABLE dbo.erdlens_users`)
+	})
+
+	s, err := i.Introspect(ctx, Options{Include: []string{"erdlens_*"}})
+	if err != nil {
+		t.Fatalf("introspect: %v", err)
+	}
+	if s.Dialect != "mssql" {
+		t.Fatalf("dialect = %q", s.Dialect)
+	}
+	if len(s.Tables) < 2 {
+		t.Fatalf("expected >=2 tables, got %d", len(s.Tables))
+	}
+	var foundUsers, foundOrders bool
+	for _, tb := range s.Tables {
+		if tb.Name == "erdlens_users" {
+			foundUsers = true
+			if tb.Schema != "dbo" {
+				t.Fatalf("users schema = %q, want dbo", tb.Schema)
+			}
+			emailUnique := false
+			for _, c := range tb.Columns {
+				if c.Name == "email" && c.Unique {
+					emailUnique = true
+				}
+			}
+			if !emailUnique {
+				t.Fatal("expected email Column.Unique")
+			}
+		}
+		if tb.Name == "erdlens_orders" {
+			foundOrders = true
+			if len(tb.ForeignKeys) == 0 {
+				t.Fatal("expected FK on erdlens_orders")
+			}
+			fk := tb.ForeignKeys[0]
+			if fk.OnDelete != "cascade" {
+				t.Fatalf("FK OnDelete = %q, want cascade", fk.OnDelete)
+			}
+		}
+	}
+	if !foundUsers || !foundOrders {
+		t.Fatalf("missing seeded tables in %#v", s.Tables)
 	}
 }
 
